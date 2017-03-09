@@ -94,6 +94,7 @@ def knn_predict(number):
 
 from sklearn.model_selection import train_test_split
 
+# 结果是n=4,weights='distance'的效果最佳，为0.97077
 def knn_train():
     # 第一步：将X和y分割成训练和测试集
     X_train, X_test, y_train, y_test = train_test_split(normalized_X, y, test_size=0.4, random_state=4)
@@ -104,7 +105,7 @@ def knn_train():
     test_accuracy = []
 
     for k in k_range:
-        knn = KNeighborsClassifier(n_neighbors=k)
+        knn = KNeighborsClassifier(n_neighbors=k, weights='distance', n_jobs=-1)
         print(knn)
         knn.fit(X_train, y_train)
         y_pred = knn.predict(X_test)
@@ -120,7 +121,7 @@ def knn_train():
 
 
 def main():
-    # knn_predict(11)
+    knn_predict(4)
     knn_train()
 
 
