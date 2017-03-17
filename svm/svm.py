@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import csv
 import time
 
+from sklearn.svm import SVC
+
 # 分类
 # SVC NuSVC LinearSVC
 
@@ -81,8 +83,6 @@ verbose：跟多线程有关，不大明白啥意思具体
 
 #一对一查询
 
-from sklearn.svm import SVC
-#
 # # X = [[0], [1], [2], [3]]
 # # Y = [0, 1, 2, 3]
 # X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
@@ -100,14 +100,84 @@ from sklearn.svm import SVC
 # print clf.predict([[-0.8, -1]])
 
 
-X = [[0], [1], [2], [3]]  # 一个？
-Y = [0, 1, 2, 3]
-clf = SVC(decision_function_shape='ovo')
-clf.fit(X, Y)
+# X = [[0], [2], [2], [3]]  # 一个？
+# Y = [0, 1, 2, 2]
+# clf = SVC(decision_function_shape='ovo')
+# clf.fit(X, Y)
+#
+# dec = clf.decision_function([[1]])
+# print dec.shape[1] # 4 classes: 4*3/2 = 6
+#
+# clf.decision_function_shape = "ovr"
+# dec = clf.decision_function([[1]])
+# print dec.shape[1] # 4 classes
 
-dec = clf.decision_function([[1]])
-print dec.shape[1] # 4 classes: 4*3/2 = 6
 
-clf.decision_function_shape = "ovr"
-dec = clf.decision_function([[1]])
-print dec.shape[1] # 4 classes
+# 实例
+# Digit Recognizer
+
+# 数据加载
+
+# load the CSV file as a numpy matrix
+dataset = np.loadtxt("train.csv", dtype=str, delimiter=",")
+test = np.loadtxt("test.csv", dtype=str, delimiter=",")
+# separate the data from the target attributes
+X = dataset[1:, 1:].astype(float)  # 数据
+y = dataset[1:, 0].astype(float)  # 标签
+test_X = test[1:, :].astype(float)
+
+# print X.dtype
+
+# print X, y
+# print X.shape, y.shape
+
+# 数据归一化
+
+from sklearn import preprocessing
+# normalize the data attributes
+normalized_X = preprocessing.normalize(X)
+test_n_X = preprocessing.normalize(test_X)
+
+
+def svc_predict():
+
+    clf = SVC(decision_function_shape='ovo')
+    clf.fit(normalized_X,y)
+    print clf
+    # print clf.predict(test_n_X)
+
+    # make predictions
+    # expected = y[:100]
+    # predicted = model.predict(normalized_X[:100, :])
+    submit = np.array([])
+    for i in range(280):
+        start_time = time.time()
+        predicted = clf.predict(test_n_X[i * 100:(i * 100 + 100), :])
+        print i, predicted
+        print time.time() - start_time
+        # print predicted.shape
+        submit = np.concatenate((submit, predicted.astype(int)), axis=0).astype(int)
+        print submit.shape
+
+    # summarize the fit of the model
+    # print(metrics.classification_report(expected, predicted))
+    # print(metrics.confusion_matrix(expected, predicted))
+
+    # 保存数据csv
+
+    with open('svc_submit' + '_sklearn.csv', 'w') as f:
+        myWriter = csv.writer(f)
+        myWriter.writerow(['ImageId', 'Label'])
+        for k, p in enumerate(list(submit)):
+            myWriter.writerow([str(k + 1), str(p)])
+
+
+def main():
+    svc_predict()
+
+
+if __name__ == '__main__':
+    main()
+
+
+
