@@ -141,7 +141,7 @@ test_n_X = preprocessing.normalize(test_X)
 
 def svc_predict():
 
-    clf = SVC(decision_function_shape='ovo')
+    clf = SVC(kernel='poly', decision_function_shape='ovo')
     clf.fit(normalized_X,y)
     print clf
     # print clf.predict(test_n_X)
@@ -165,7 +165,7 @@ def svc_predict():
 
     # 保存数据csv
 
-    with open('svc_submit' + '_sklearn.csv', 'w') as f:
+    with open('svc_ploy_submit' + '_sklearn.csv', 'w') as f:
         myWriter = csv.writer(f)
         myWriter.writerow(['ImageId', 'Label'])
         for k, p in enumerate(list(submit)):
