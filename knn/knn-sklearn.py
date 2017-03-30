@@ -94,7 +94,7 @@ def knn_predict(number):
 
 from sklearn.model_selection import train_test_split
 
-# 结果是n=4,weights='distance'的效果最佳，为0.97077
+# 结果是n=4,weights='distance'的效果最佳，为0.97586
 def knn_train():
     # 第一步：将X和y分割成训练和测试集
     X_train, X_test, y_train, y_test = train_test_split(normalized_X, y, test_size=0.4, random_state=4)

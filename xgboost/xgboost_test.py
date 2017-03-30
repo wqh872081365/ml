@@ -17,7 +17,6 @@ tests = pd.read_csv("test.csv") # 注意自己数据路径
 #test_id = range(len(tests))
 test = tests.iloc[:,:].values
 
-
 params={
 'booster':'gbtree',
 # 这里手写数字是0-9，是一个多类的问题，因此采用了multisoft多分类器，
