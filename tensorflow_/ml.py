@@ -33,11 +33,11 @@ test_X = test[1:, :].astype(float)
 from sklearn import preprocessing
 # normalize the data attributes
 normalized_X = preprocessing.normalize(X_dataset)
-X_test = preprocessing.normalize(test_X)
+# X_test = preprocessing.normalize(test_X)
 
-X_train, X_val, y_train, y_val = train_test_split(normalized_X, y_dataset, test_size=0.4, random_state=4)
-
-
+X_train, X_val, y_train, y_val = train_test_split(normalized_X[:32000, :], y_dataset[:32000, :], test_size=0.4, random_state=4)
+X_test = normalized_X[32000:, :]
+y_test = y_dataset[32000:, :]
 
 # 定义 placeholder
 x = tf.placeholder(tf.float32, shape=[None, 784], name='x')
@@ -77,21 +77,21 @@ network.print_layers()
 
 # 训练模型
 tl.utils.fit(sess, network, train_op, cost, X_train, y_train, x, y_,
-            acc=acc, batch_size=500, n_epoch=10000, print_freq=5,
+            acc=acc, batch_size=500, n_epoch=4000, print_freq=5,
             X_val=X_val, y_val=y_val, eval_train=False)
 
 # 评估模型
-# tl.utils.test(sess, network, acc, X_test, y_test, x, y_, batch_size=None, cost=cost)
+tl.utils.test(sess, network, acc, X_test, y_test, x, y_, batch_size=None, cost=cost)
 
 # 预测模型
-preds = tl.utils.predict(sess, network, X_test, x, y_op)
+# preds = tl.utils.predict(sess, network, X_test, x, y_op)
 
 # 把模型保存成 .npz 文件
 # tl.files.save_npz(network.all_params , name='model.npz')
 
 # 保持数据
-np.savetxt('submission_tf_nn.csv',np.c_[range(1,len(test)),preds],
-                delimiter=',',header='ImageId,Label',comments='',fmt='%d')
+# np.savetxt('submission_tf_nn.csv',np.c_[range(1,len(test)),preds],
+#                 delimiter=',',header='ImageId,Label',comments='',fmt='%d')
 
 
 

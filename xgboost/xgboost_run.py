@@ -3,6 +3,8 @@
 import xgboost as xgb
 import numpy as np
 
+from sklearn.model_selection import train_test_split
+
 
 # load the CSV file as a numpy matrix
 dataset = np.loadtxt("train.csv", dtype=str, delimiter=",")
@@ -38,18 +40,20 @@ params = {
     'silent':1 ,
     'eta': 0.005,  # 如同学习率
     'seed':710,
-    'nthread':4,  # cpu 线程数,根据自己U的个数适当调整
+    # 'nthread':4,  # cpu 线程数,根据自己U的个数适当调整
     }
 
 #Using 10000 rows for early stopping.
-offset = 30000  # 训练集中数据42000，划分30000用作训练，12000用作验证
+# offset = 30000  # 训练集中数据42000，划分30000用作训练，12000用作验证
 
-num_rounds = 500 # 迭代你次数
+X_train, X_test, y_train, y_test = train_test_split(normalized_X, y, test_size=0.4, random_state=4)
+
+num_rounds = 10000 # 迭代你次数
 xgtest = xgb.DMatrix(test_n_X)
 
 # 划分训练集与验证集
-xgtrain = xgb.DMatrix(normalized_X[:offset,:], label=y[:offset])
-xgval = xgb.DMatrix(normalized_X[offset:,:], label=y[offset:])
+xgtrain = xgb.DMatrix(X_train, label=y_train)
+xgval = xgb.DMatrix(X_test, label=y_test)
 
 # return 训练和验证的错误率
 watchlist = [(xgtrain, 'train'),(xgval, 'val')]
@@ -62,7 +66,7 @@ model = xgb.train(params, xgtrain, num_rounds, watchlist,early_stopping_rounds=1
 preds = model.predict(xgtest,ntree_limit=model.best_iteration)
 
 # 将预测结果写入文件，方式有很多，自己顺手能实现即可
-np.savetxt('submission_xgb_MultiSoftmax_1.csv',np.c_[range(1,len(test)),preds],
+np.savetxt('submission_xgb_MultiSoftmax_10000.csv',np.c_[range(1,len(test)),preds],
                 delimiter=',',header='ImageId,Label',comments='',fmt='%d')
 
 # 模型保存
