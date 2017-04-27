@@ -17,6 +17,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
+from keras.optimizers import RMSprop
 
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -33,27 +34,45 @@ epochs = 100
 # input image dimensions
 img_rows, img_cols = 28, 28
 
-# mnist init epochs=12 -> loss: 0.0348 - acc: 0.9890 - val_loss: 0.0283 - val_acc: 0.9905
-# digit_recognizer test_size=0.4 epochs=12 -> 0.98643 训练的数据量较少
-# digit_recognizer test_size=0.4 epochs=42 ->  loss: 0.0123 - acc: 0.9963 - val_loss: 0.0467 - val_acc: 0.9888
-# digit_recognizer test_size=0.2 epochs=100 ->
+# keras cnn use mnist init epochs=12 -> loss: 0.0348 - acc: 0.9890 - val_loss: 0.0283 - val_acc: 0.9905
+# keras cnn digit_recognizer test_size=0.4 epochs=12 -> 0.98643 训练的数据量较少
+# keras cnn digit_recognizer test_size=0.4 epochs=42 ->  loss: 0.0123 - acc: 0.9963 - val_loss: 0.0467 - val_acc: 0.9888
+# keras cnn digit_recognizer test_size=0.2 epochs=100 -> loss: 0.0109 - acc: 0.9968 - val_loss: 0.0669 - val_acc: 0.9886
+# keras cnn use mnist init epochs=24 -> loss: 0.0228 - acc: 0.9930 - val_loss: 0.0265 - val_acc: 0.9922
+# keras cnn use mnist init epochs=50 -> loss: 0.0189 - acc: 0.9942 - val_loss: 0.0319 - val_acc: 0.9928
+# keras cnn use mnist init epochs=100 ->
+# keras cnn use mnist model_ epochs=12 ->
+
+# keras mlp use mnist init epochs=100 -> loss: 0.0056 - acc: 0.9992 - val_loss: 0.2065 - val_acc: 0.9829
+# keras mlp use mnist init epochs=300 -> loss: 0.0025 - acc: 0.9997 - val_loss: 0.1904 - val_acc: 0.9847
+# keras mlp use mnist model_6_layer epochs=500 ->
+
+# tensorlayer cnn ->
+
+# tensorlayer mlp ->
+
 
 def keras_cnn():
     # the data, shuffled and split between train and test sets
-    # (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    # x_test = np.concatenate((x_train, x_test), axis=0)
+    # y_test = np.concatenate((y_train, y_test), axis=0)
 
     # y_train[y_train != 1] = 0
     # y_test[y_test != 1] = 0
 
-    dataset = np.loadtxt("../tensorflow_/train.csv", dtype=str, delimiter=",")
+    # dataset = np.loadtxt("../tensorflow_/train.csv", dtype=str, delimiter=",")
     test = np.loadtxt("../tensorflow_/test.csv", dtype=str, delimiter=",")
-
-    # separate the data from the target attributes
-    X_dataset = dataset[1:, 1:].astype(int)  # 数据
-    y_dataset = dataset[1:, 0].astype(int)  # 标签
+    #
+    # # separate the data from the target attributes
+    # X_dataset = dataset[1:, 1:].astype(int)  # 数据
+    # y_dataset = dataset[1:, 0].astype(int)  # 标签
     X_test = test[1:, :].astype(int)
+    #
+    # x_train = X_dataset
+    # y_train = y_dataset
 
-    x_train, x_test, y_train, y_test = train_test_split(X_dataset, y_dataset, test_size=0.2, random_state=4)
+    # x_train, x_test, y_train, y_test = train_test_split(X_dataset, y_dataset, test_size=0.2, random_state=4)
 
     x_train[x_train < 64] = 0
     x_train[x_train >= 64] = 1
@@ -106,7 +125,7 @@ def keras_cnn():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model_keras_cnn_epochs_100_test_size_020.h5')
+    model.save('model_keras_cnn_epochs_12.h5')
 
     # from keras.models import load_model
     # model = load_model('model_keras_cnn_init_mnist.h5')
@@ -124,7 +143,7 @@ def keras_cnn():
     preds = model.predict_classes(X_test, batch_size=batch_size, verbose=1)
     # print(preds)
 
-    np.savetxt('submission_keras_cnn_epochs_100_test_size_020.csv', np.c_[range(1, len(test)), preds],
+    np.savetxt('submission_keras_cnn_epochs_12.csv', np.c_[range(1, len(test)), preds],
                delimiter=',', header='ImageId,Label', comments='', fmt='%d')
 
     print("end")
@@ -132,34 +151,37 @@ def keras_cnn():
 
 def predict_load_model():
     # the data, shuffled and split between train and test sets
-    # (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
     # y_train[y_train != 1] = 0
     # y_test[y_test != 1] = 0
 
-    dataset = np.loadtxt("../tensorflow_/train.csv", dtype=str, delimiter=",")
+    # dataset = np.loadtxt("../tensorflow_/train.csv", dtype=str, delimiter=",")
     test = np.loadtxt("../tensorflow_/test.csv", dtype=str, delimiter=",")
 
     # separate the data from the target attributes
-    X_dataset = dataset[1:, 1:].astype(int)  # 数据
-    y_dataset = dataset[1:, 0].astype(int)  # 标签
+    # X_dataset = dataset[1:, 1:].astype(int)  # 数据
+    # y_dataset = dataset[1:, 0].astype(int)  # 标签
     X_test = test[1:, :].astype(int)
 
-    x_train, x_test, y_train, y_test = train_test_split(X_dataset, y_dataset, test_size=0.4, random_state=4)
+    # x_train, x_test, y_train, y_test = train_test_split(X_dataset, y_dataset, test_size=0.4, random_state=4)
 
     x_train[x_train < 64] = 0
     x_train[x_train >= 64] = 1
     x_test[x_test < 64] = 0
     x_test[x_test >= 64] = 1
 
-    if K.image_data_format() == 'channels_first':
-        x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
-        x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
-        input_shape = (1, img_rows, img_cols)
-    else:
-        x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
-        x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
-        input_shape = (img_rows, img_cols, 1)
+    x_train = x_train.reshape(60000, 784)
+    x_test = x_test.reshape(10000, 784)
+
+    # if K.image_data_format() == 'channels_first':
+    #     x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
+    #     x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
+    #     input_shape = (1, img_rows, img_cols)
+    # else:
+    #     x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+    #     x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+    #     input_shape = (img_rows, img_cols, 1)
 
     # x_train = x_train.astype('float32')
     # x_test = x_test.astype('float32')
@@ -174,18 +196,18 @@ def predict_load_model():
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     from keras.models import load_model
-    model = load_model('model_keras_cnn_init.h5')
+    model = load_model('model_keras_mlp_mnist_epochs_100.h5')
 
     model.fit(x_train, y_train,
               batch_size=batch_size,
-              epochs=30,
-              verbose=1,
+              epochs=200,
+              verbose=2,
               validation_data=(x_test, y_test))
     score = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model_keras_cnn_epochs_30.h5')
+    model.save('model_keras_mlp_mnist_epochs_300.h5')
 
     # from keras.models import load_model
     # model = load_model('model_keras_cnn_init_mnist.h5')
@@ -193,23 +215,103 @@ def predict_load_model():
     X_test[X_test < 64] = 0
     X_test[X_test >= 64] = 1
 
-    if K.image_data_format() == 'channels_first':
-        X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
-        input_shape = (1, img_rows, img_cols)
-    else:
-        X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, 1)
-        input_shape = (img_rows, img_cols, 1)
+    X_test = X_test.reshape(X_test.shape[0], 784)
+
+    # if K.image_data_format() == 'channels_first':
+    #     X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
+    #     input_shape = (1, img_rows, img_cols)
+    # else:
+    #     X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, 1)
+    #     input_shape = (img_rows, img_cols, 1)
 
     preds = model.predict_classes(X_test, batch_size=batch_size, verbose=1)
     # print(preds)
 
-    np.savetxt('submission_keras_cnn_epochs_30.csv', np.c_[range(1, len(test)), preds],
+    np.savetxt('submission_keras_mlp_mnist_epochs_300.csv', np.c_[range(1, len(test)), preds],
                delimiter=',', header='ImageId,Label', comments='', fmt='%d')
 
     print("end")
 
 
 def keras_mlp():
+    # the data, shuffled and split between train and test sets
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+    test = np.loadtxt("../tensorflow_/test.csv", dtype=str, delimiter=",")
+    X_test = test[1:, :].astype(int)
+
+    x_train[x_train < 64] = 0
+    x_train[x_train >= 64] = 1
+    x_test[x_test < 64] = 0
+    x_test[x_test >= 64] = 1
+
+    x_train = x_train.reshape(60000, 784)
+    x_test = x_test.reshape(10000, 784)
+    # x_train = x_train.astype('float32')
+    # x_test = x_test.astype('float32')
+    # x_train /= 255
+    # x_test /= 255
+    print(x_train.shape[0], 'train samples')
+    print(x_test.shape[0], 'test samples')
+
+    # convert class vectors to binary class matrices
+    y_train = keras.utils.to_categorical(y_train, num_classes)
+    y_test = keras.utils.to_categorical(y_test, num_classes)
+
+    model = Sequential()
+    model.add(Dense(784, activation='', input_shape=(784,)))
+    model.add(Dropout(0.5))
+    model.add(Dense(2500, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    model.add(Dense(2000, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    model.add(Dense(150, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    model.add(Dense(1000, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    model.add(Dense(500, activation='sigmoid'))
+    model.add(Dropout(0.5))
+    model.add(Dense(10, activation='softmax'))
+
+    model.summary()
+
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=RMSprop(),
+                  metrics=['accuracy'])
+
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=2,
+              validation_data=(x_test, y_test))
+    score = model.evaluate(x_test, y_test, verbose=0)
+    print('Test loss:', score[0])
+    print('Test accuracy:', score[1])
+
+    model.save('model_keras_mlp_mnist_model_6_layer_epochs_500.h5')
+
+    # from keras.models import load_model
+    # model = load_model('model_keras_cnn_init_mnist.h5')
+
+    X_test[X_test < 64] = 0
+    X_test[X_test >= 64] = 1
+
+    X_test = X_test.reshape(X_test.shape[0], 784)
+
+    preds = model.predict_classes(X_test, batch_size=batch_size, verbose=2)
+    # print(preds)
+
+    np.savetxt('submission_keras_mlp_mnist_model_6_layer_epochs_500.csv', np.c_[range(1, len(test)), preds],
+               delimiter=',', header='ImageId,Label', comments='', fmt='%d')
+
+    print("end")
+
+
+def tensorlayer_cnn():
+    pass
+
+
+def tensorlayer_mlp():
     pass
 
 
@@ -448,8 +550,9 @@ def predict_proba_number(number):
 
 
 def main():
-    keras_cnn()
-    # predict_load_model()
+    # keras_cnn()
+    predict_load_model()
+    # keras_mlp()
     # feature_search()
     # picture_show()
     # picture_save()
