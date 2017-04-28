@@ -25,11 +25,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import tensorflow as tf
+import tensorlayer as tl
 
 
 batch_size = 128
 num_classes = 10
-epochs = 100
+epochs = 5
 
 # input image dimensions
 img_rows, img_cols = 28, 28
@@ -259,18 +260,10 @@ def keras_mlp():
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    model.add(Dense(784, activation='', input_shape=(784,)))
-    model.add(Dropout(0.5))
-    model.add(Dense(2500, activation='sigmoid'))
-    model.add(Dropout(0.5))
-    model.add(Dense(2000, activation='sigmoid'))
-    model.add(Dropout(0.5))
-    model.add(Dense(150, activation='sigmoid'))
-    model.add(Dropout(0.5))
-    model.add(Dense(1000, activation='sigmoid'))
-    model.add(Dropout(0.5))
-    model.add(Dense(500, activation='sigmoid'))
-    model.add(Dropout(0.5))
+    model.add(Dense(512, activation='relu', input_shape=(784,)))
+    model.add(Dropout(0.2))
+    model.add(Dense(512, activation='relu'))
+    model.add(Dropout(0.2))
     model.add(Dense(10, activation='softmax'))
 
     model.summary()
@@ -279,7 +272,7 @@ def keras_mlp():
                   optimizer=RMSprop(),
                   metrics=['accuracy'])
 
-    model.fit(x_train, y_train,
+    model.fit(x_train[:1000], y_train[0:1000],
               batch_size=batch_size,
               epochs=epochs,
               verbose=2,
@@ -288,7 +281,7 @@ def keras_mlp():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model_keras_mlp_mnist_model_6_layer_epochs_500.h5')
+    model.save('model_keras_mlp_mnist_model_6_layer_epochs_120.h5')
 
     # from keras.models import load_model
     # model = load_model('model_keras_cnn_init_mnist.h5')
@@ -301,18 +294,195 @@ def keras_mlp():
     preds = model.predict_classes(X_test, batch_size=batch_size, verbose=2)
     # print(preds)
 
-    np.savetxt('submission_keras_mlp_mnist_model_6_layer_epochs_500.csv', np.c_[range(1, len(test)), preds],
+    np.savetxt('submission_keras_mlp_mnist_model_6_layer_epochs_120.csv', np.c_[range(1, len(test)), preds],
                delimiter=',', header='ImageId,Label', comments='', fmt='%d')
 
     print("end")
 
 
 def tensorlayer_cnn():
-    pass
+    sess = tf.InteractiveSession()
+
+    # prepare data
+    X_train, y_train, X_val, y_val, X_test, y_test = \
+        tl.files.load_mnist_dataset(shape=(-1, 784))
+
+    X_train[X_train < 0.25] = 0
+    X_train[X_train >= 0.25] = 1
+    # X_train = X_train.astype(int)
+
+    X_val[X_val < 0.25] = 0
+    X_val[X_val >= 0.25] = 1
+    # X_val = X_val.astype(int)
+
+    X_test[X_test < 0.25] = 0
+    X_test[X_test >= 0.25] = 1
+    # X_test = X_test.astype(int)
+
+    X_train = X_train.reshape(X_train.shape[0], img_rows, img_cols, 1)
+    X_val = X_val.reshape(X_val.shape[0], img_rows, img_cols, 1)
+    X_test = X_test.reshape(X_test.shape[0], img_rows, img_cols, 1)
+
+    # define placeholder
+    x = tf.placeholder(tf.float32, shape=[None, 28, 28, 1], name='x')
+    y_ = tf.placeholder(tf.int64, shape=[None, ], name='y_')
+
+    # define the network
+    network = tl.layers.InputLayer(x, name='input_layer')
+    network = tl.layers.Conv2d(network, n_filter=32, filter_size=(5, 5), strides=(1, 1),
+                               act=tf.nn.relu, padding='SAME', name='cnn1')
+    network = tl.layers.MaxPool2d(network, filter_size=(2, 2), strides=(2, 2),
+                                  padding='SAME', name='pool_layer1')
+    network = tl.layers.Conv2d(network, n_filter=64, filter_size=(5, 5), strides=(1, 1),
+                               act=tf.nn.relu, padding='SAME', name='cnn2')
+    network = tl.layers.MaxPool2d(network, filter_size=(2, 2), strides=(2, 2),
+                                  padding='SAME', name='pool_layer2')
+    ## end of conv
+    network = tl.layers.FlattenLayer(network, name='flatten')
+    network = tl.layers.DropoutLayer(network, keep=0.5, name='drop1')
+    network = tl.layers.DenseLayer(network, n_units=256,
+                                   act=tf.nn.relu, name='relu1')
+    network = tl.layers.DropoutLayer(network, keep=0.5, name='drop2')
+    network = tl.layers.DenseLayer(network, n_units=10,
+                                   act=tf.identity,
+                                   name='output')
+
+    # define cost function and metric.
+    y = network.outputs
+    cost = tl.cost.cross_entropy(y, y_, name='xentropy')
+    correct_prediction = tf.equal(tf.argmax(y, 1), y_)
+    acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    y_op = tf.argmax(tf.nn.softmax(y), 1)
+
+    # define the optimizer
+    train_params = network.all_params
+    train_op = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999,
+                                      epsilon=1e-08, use_locking=False).minimize(cost, var_list=train_params)
+
+    # initialize all variables in the session
+    tl.layers.initialize_global_variables(sess)
+
+    # print network information
+    network.print_params()
+    network.print_layers()
+
+    # train the network
+    tl.utils.fit(sess, network, train_op, cost, X_train, y_train, x, y_,
+                 acc=acc, batch_size=500, n_epoch=5, print_freq=5,
+                 X_val=X_val, y_val=y_val, eval_train=False)
+
+    # evaluation
+    tl.utils.test(sess, network, acc, X_test, y_test, x, y_, batch_size=None, cost=cost)
+
+    # save the network to .npz file
+    tl.files.save_npz(network.all_params, name='model_tl_cnn_mnist_epochs_500.npz')
+
+    test = np.loadtxt("../tensorflow_/test.csv", dtype=str, delimiter=",")
+    data_test = test[1:, :].astype(int)
+
+    data_test[data_test < 0.25] = 0
+    data_test[data_test >= 0.25] = 1
+    # data_test = data_test.astype(int)
+
+    data_test = data_test.reshape(data_test.shape[0], 28, 28, 1)
+
+    preds = tl.utils.predict(sess, network, data_test, x, y_op)
+    # print(preds)
+
+    np.savetxt('submission_tl_cnn_mnist_epochs_500.csv', np.c_[range(1, len(test)), preds],
+               delimiter=',', header='ImageId,Label', comments='', fmt='%d')
+
+    print("end")
+
+    sess.close()
 
 
 def tensorlayer_mlp():
-    pass
+    sess = tf.InteractiveSession()
+
+    # prepare data
+    X_train, y_train, X_val, y_val, X_test, y_test = \
+        tl.files.load_mnist_dataset(shape=(-1, 784))
+
+    X_train[X_train < 0.25] = 0
+    X_train[X_train >= 0.25] = 1
+    X_train = X_train.astype(int)
+
+    X_val[X_val < 0.25] = 0
+    X_val[X_val >= 0.25] = 1
+    X_val = X_val.astype(int)
+
+    X_test[X_test < 0.25] = 0
+    X_test[X_test >= 0.25] = 1
+    X_test = X_test.astype(int)
+    # define placeholder
+    x = tf.placeholder(tf.float32, shape=[None, 784], name='x')
+    y_ = tf.placeholder(tf.int64, shape=[None, ], name='y_')
+
+    # define the network
+    network = tl.layers.InputLayer(x, name='input_layer')
+    network = tl.layers.DropoutLayer(network, keep=0.8, name='drop1')
+    network = tl.layers.DenseLayer(network, n_units=800,
+                                   act=tf.nn.relu, name='relu1')
+    network = tl.layers.DropoutLayer(network, keep=0.5, name='drop2')
+    network = tl.layers.DenseLayer(network, n_units=800,
+                                   act=tf.nn.relu, name='relu2')
+    network = tl.layers.DropoutLayer(network, keep=0.5, name='drop3')
+    # the softmax is implemented internally in tl.cost.cross_entropy(y, y_) to
+    # speed up computation, so we use identity here.
+    # see tf.nn.sparse_softmax_cross_entropy_with_logits()
+    network = tl.layers.DenseLayer(network, n_units=10,
+                                   act=tf.identity,
+                                   name='output_layer')
+
+    # define cost function and metric.
+    y = network.outputs
+    cost = tl.cost.cross_entropy(y, y_, name='xentropy')
+    correct_prediction = tf.equal(tf.argmax(y, 1), y_)
+    acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    y_op = tf.argmax(tf.nn.softmax(y), 1)
+
+    # define the optimizer
+    train_params = network.all_params
+    train_op = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999,
+                                      epsilon=1e-08, use_locking=False).minimize(cost, var_list=train_params)
+
+    # initialize all variables in the session
+    tl.layers.initialize_global_variables(sess)
+
+    # print network information
+    network.print_params()
+    network.print_layers()
+
+    # train the network
+    tl.utils.fit(sess, network, train_op, cost, X_train, y_train, x, y_,
+                 acc=acc, batch_size=500, n_epoch=5, print_freq=5,
+                 X_val=X_val, y_val=y_val, eval_train=False)
+
+    # evaluation
+    tl.utils.test(sess, network, acc, X_test, y_test, x, y_, batch_size=None, cost=cost)
+
+    # save the network to .npz file
+    tl.files.save_npz(network.all_params, name='model_tl_mlp_mnist_epochs_500.npz')
+
+    test = np.loadtxt("../tensorflow_/test.csv", dtype=str, delimiter=",")
+    data_test = test[1:, :].astype(int)
+
+    data_test[data_test < 0.25] = 0
+    data_test[data_test >= 0.25] = 1
+    data_test = data_test.astype(int)
+
+    data_test = data_test.reshape(data_test.shape[0], 784)
+
+    preds = tl.utils.predict(sess, network, data_test, x, y_op)
+    # print(preds)
+
+    np.savetxt('submission_tl_mlp_mnist_epochs_500.csv', np.c_[range(1, len(test)), preds],
+               delimiter=',', header='ImageId,Label', comments='', fmt='%d')
+
+    print("end")
+
+    sess.close()
 
 
 def feature_search():
@@ -551,8 +721,10 @@ def predict_proba_number(number):
 
 def main():
     # keras_cnn()
-    predict_load_model()
+    # predict_load_model()
     # keras_mlp()
+    tensorlayer_cnn()
+    # tensorlayer_mlp()
     # feature_search()
     # picture_show()
     # picture_save()
