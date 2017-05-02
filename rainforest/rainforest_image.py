@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# rainforest
+# rainforest_image
 
 # import matplotlib
 # matplotlib.use('TkAgg')
