@@ -2,8 +2,8 @@
 
 # rainforest_image
 
-# import matplotlib
-# matplotlib.use('TkAgg')
+import matplotlib
+matplotlib.use('TkAgg')
 
 # import numpy as np
 # import pandas as pd
@@ -21,6 +21,7 @@ from six import string_types
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import scipy
@@ -30,29 +31,37 @@ from scipy import ndimage
 # %matplotlib inline
 
 
+## keras
+# keras cnn init epochs=5 ->
+# keras cnn init epochs=50 ->
+# keras mlp init epochs=5 ->
+
+
 ## data init
 
 # labels_df = pd.read_csv("data/train.csv")
-# print(labels_df.head())
-
-# Build list with unique labels
+# # print(labels_df.head())
+# #
+# # # Build list with unique labels
 # label_list = []
 # for tag_str in labels_df.tags.values:
 #     labels = tag_str.split(' ')
 #     for label in labels:
 #         if label not in label_list:
 #             label_list.append(label)
-
-# datas_df = pd.read_csv("data/sample_submission.csv")
-
-# Add onehot features for every label
+#
+# # datas_df = pd.read_csv("data/sample_submission.csv")
+#
+# # Add onehot features for every label
 # for label in label_list:
-#     datas_df[label] = datas_df['tags'].apply(lambda x: 1 if label in x.split(' ') else 0)
-    # datas_df[label] = datas_df[label].astype(int)
-# Display head
-# print(labels_df.head())
-# datas_df.to_csv("data/test_list.csv", index=False)
-
+#     labels_df[label] = labels_df['tags'].apply(lambda x: 1 if label in x.split(' ') else 0)
+# # # Display head
+# # # print(labels_df.head())
+# # labels_df.to_csv("data/train_list.csv", index=False)
+# train_df = labels_df
+#
+test_df = pd.read_csv("data/sample_submission.csv")
+# test_df['tags'] = test_df['tags'].apply(lambda x: '')
 
 # start
 
@@ -120,32 +129,45 @@ from tqdm import tqdm
 
 x_train = []
 x_test = []
-y_train = []
+# y_train = []
 
-df_train = pd.read_csv('../input/train.csv')
+# df_train = pd.read_csv('data/train.csv')
 
-flatten = lambda l: [item for sublist in l for item in sublist]
-labels = list(set(flatten([l.split(' ') for l in df_train['tags'].values])))
+# flatten = lambda l: [item for sublist in l for item in sublist]
+# labels = list(set(flatten([l.split(' ') for l in df_train['tags'].values])))
 
-label_map = {l: i for i, l in enumerate(labels)}
-inv_label_map = {i: l for l, i in label_map.items()}
+# label_map = {l: i for i, l in enumerate(labels)}
+# inv_label_map = {i: l for l, i in label_map.items()}
 
-for f, tags in tqdm(df_train.values[:20000], miniters=1000):
-    img = cv2.imread('../input/train-jpg/{}.jpg'.format(f))
-    targets = np.zeros(17)
-    for t in tags.split(' '):
-        targets[label_map[t]] = 1
+for f in tqdm(train_df.values[:2], miniters=1000):
+    img = cv2.imread('data/train-jpg-sample/{}.jpg'.format(f[0]))
+    # targets = np.zeros(17)
+    # for t in tags.split(' '):
+        # targets[label_map[t]] = 1
     x_train.append(cv2.resize(img, (32, 32)))
-    y_train.append(targets)
+    # y_train.append(targets)
 
-y_train = np.array(y_train, np.uint8)
+for f in tqdm(test_df.values[:1], miniters=1000):
+    img = cv2.imread('data/test-jpg-sample/{}.jpg'.format(f[0]))
+    # targets = np.zeros(17)
+    # for t in tags.split(' '):
+        # targets[label_map[t]] = 1
+    x_test.append(cv2.resize(img, (32, 32)))
+    # y_train.append(targets)
+
 x_train = np.array(x_train, np.float16) / 255.
+x_test = np.array(x_test, np.float16) / 255.
+
+# x_train /= 255
+# x_train = x_train.reshape(x_train.shape[0], 32, 32, 3)
+# x_test /= 255
+# x_test = x_test.reshape(x_test.shape[0], 32, 32, 3)
+y_train = train_df.values[0:2, 2:19]
 
 print(x_train.shape)
 print(y_train.shape)
 
-split = 15000
-x_train, x_valid, y_train, y_valid = x_train[:split], x_train[split:], y_train[:split], y_train[split:]
+x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.2, random_state=4)
 
 model = Sequential()
 model.add(Conv2D(32, kernel_size=(3, 3),
@@ -167,14 +189,24 @@ model.compile(loss='binary_crossentropy',
 
 model.fit(x_train, y_train,
           batch_size=128,
-          epochs=5,
+          epochs=10,
           verbose=1,
           validation_data=(x_valid, y_valid))
+score = model.evaluate(x_valid, y_valid, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
 
-from sklearn.metrics import fbeta_score
+# model.save('model_keras_cnn_epochs_5.h5')
 
-p_valid = model.predict(x_valid, batch_size=128)
-print(y_valid)
-print(p_valid)
-print(fbeta_score(y_valid, np.array(p_valid) > 0.5, beta=2, average='macro'))
+# from sklearn.metrics import fbeta_score
+# p_valid = model.predict(x_valid, batch_size=128)
+# print(fbeta_score(y_valid, p_valid > 0.5, beta=2, average='macro'))
+
+p_test = model.predict(x_test, batch_size=128)
+preds = []
+for i in range(p_test.shape[0]):
+    preds.append(' '.join([label_list[j] for j in range(len(label_list)) if p_test[i, j]>0.5]))
+
+np.savetxt('submission_keras_cnn_epochs_5.csv', np.c_[map(lambda x: "test_" + str(x), range(x_test.shape[0])), preds],
+               delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
