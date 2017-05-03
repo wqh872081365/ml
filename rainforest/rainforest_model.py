@@ -32,7 +32,7 @@ from scipy import ndimage
 
 
 ## keras
-# keras cnn init epochs=5 ->
+# keras cnn init epochs=1 -> loss: 0.2567 - acc: 0.9034 - val_loss: 0.2009 - val_acc: 0.9204  # score=0.70001左右； 0.5时F2=0.695 （会有0.0）;0.2时F2=
 # keras cnn init epochs=50 ->
 # keras mlp init epochs=5 ->
 
@@ -147,7 +147,7 @@ for f in tqdm(train_df.values[:2], miniters=1000):
     x_train.append(cv2.resize(img, (32, 32)))
     # y_train.append(targets)
 
-for f in tqdm(test_df.values[:1], miniters=1000):
+for f in tqdm(test_df.values[:2], miniters=1000):
     img = cv2.imread('data/test-jpg-sample/{}.jpg'.format(f[0]))
     # targets = np.zeros(17)
     # for t in tags.split(' '):
@@ -198,15 +198,24 @@ print('Test accuracy:', score[1])
 
 # model.save('model_keras_cnn_epochs_5.h5')
 
-# from sklearn.metrics import fbeta_score
-# p_valid = model.predict(x_valid, batch_size=128)
-# print(fbeta_score(y_valid, p_valid > 0.5, beta=2, average='macro'))
+from sklearn.metrics import fbeta_score
+p_valid = model.predict(x_valid, batch_size=128)
+# print(fbeta_score(y_valid == 1, p_valid > 0.5, beta=2, average='samples'))
 
 p_test = model.predict(x_test, batch_size=128)
 preds = []
 for i in range(p_test.shape[0]):
     preds.append(' '.join([label_list[j] for j in range(len(label_list)) if p_test[i, j]>0.5]))
 
-np.savetxt('submission_keras_cnn_epochs_5.csv', np.c_[map(lambda x: "test_" + str(x), range(x_test.shape[0])), preds],
-               delimiter=',', header='image_name,tags', comments='', fmt='%s')
+# python2
+index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
+## python3
+# index_preds = list(map(lambda x: "test_" + str(x), range(len(preds))))
+
+print(len(index_preds))
+print(len(preds))
+preds_data = np.c_[index_preds, preds]
+print(preds_data.shape)
+# np.savetxt('submission_keras_cnn_epochs_5.csv', preds_data,
+#                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
