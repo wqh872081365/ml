@@ -2,8 +2,8 @@
 
 # rainforest
 
-# import matplotlib
-# matplotlib.use('TkAgg')
+import matplotlib
+matplotlib.use('TkAgg')
 
 import tensorflow as tf
 import sys
@@ -18,6 +18,8 @@ import matplotlib.image as mpimg
 import scipy
 from skimage import io
 from scipy import ndimage
+import cv2
+from tqdm import tqdm
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -46,8 +48,37 @@ def test_submission_ver():
     plt.show()
 
 
+def save_image():
+    # use cv2
+    for i in tqdm(range(40479), miniters=1000):
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/train_'+str(i)+'.jpg')
+        img = cv2.resize(img, (32, 32))
+        cv2.imwrite('/users/wangqihui/Downloads/rainforest/train-jpg-32/train_'+str(i)+'.png', img)
+
+    for i in tqdm(range(40669), miniters=1000):
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/test_'+str(i)+'.jpg')
+        img = cv2.resize(img, (32, 32))
+        cv2.imwrite('/users/wangqihui/Downloads/rainforest/test-jpg-32/test_'+str(i)+'.png', img)
+
+
+def kears_cnn():
+    pass
+
+
+def keras_mlp():
+    pass
+
+
+def predict_load_model():
+    pass
+
+
 def main():
-    test_submission_ver()
+    # test_submission_ver()
+    # save_image()
+    # kears_cnn()
+    predict_load_model()
+    # keras_mlp()
 
 
 if __name__ == '__main__':
