@@ -34,7 +34,10 @@ from scipy import ndimage
 ## keras
 # keras cnn init epochs=1 -> loss: 0.2567 - acc: 0.9034 - val_loss: 0.2009 - val_acc: 0.9204  # score=0.70001左右； 0.5时F2=0.695 （会有0.0）;0.2时F2=
 # keras cnn init epochs=20 -> loss: 0.1409 - acc: 0.9438 - val_loss: 0.1413 - val_acc: 0.9440 # score=0.81945左右； 0.5时F2=0.8178 （会有0.0）23十个左右
-# keras mlp init epochs=5 ->
+# keras cnn init epochs=50 -> loss: 0.1042 - acc: 0.9560 - val_loss: 0.1539 - val_acc: 0.9471 # score=0.83314左右； 0.5时F2=0.83305 （会有0.0）6个
+# keras cnn init epochs=800 ->
+
+# keras mlp init epochs=10 -> loss: 0.2066 - acc: 0.9182 - val_loss: 0.2041 - val_acc: 0.9177 # score=0.70913；有0.0较多
 
 
 ## data init
@@ -140,11 +143,11 @@ x_test = []
 # inv_label_map = {i: l for l, i in label_map.items()}
 
 for i in tqdm(range(40479), miniters=1000):
-    img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg-32/train_' + str(i) + '.png')
+    img = cv2.imread('data/train-jpg-32/train_' + str(i) + '.png')
     x_train.append(img)
 
 for i in tqdm(range(40669), miniters=1000):
-    img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg-32/test_' + str(i) + '.png')
+    img = cv2.imread('data/test-jpg-32/test_' + str(i) + '.png')
     x_test.append(img)
 
 # for f in tqdm(train_df.values, miniters=1000):
@@ -176,7 +179,7 @@ print(x_train.shape)
 print(y_train.shape)
 print(x_test.shape)
 
-x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1905, random_state=4)
+x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.19049, random_state=4)
 
 model = Sequential()
 model.add(Conv2D(32, kernel_size=(3, 3),
@@ -200,14 +203,14 @@ model.compile(loss='binary_crossentropy',
 
 model.fit(x_train, y_train,
           batch_size=128,
-          epochs=20,
+          epochs=50,
           verbose=1,
           validation_data=(x_valid, y_valid))
 score = model.evaluate(x_valid, y_valid, verbose=0)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
-model.save('model/model_keras_cnn_init_epochs_20.h5')
+model.save('model/model_keras_cnn_init_epochs_50.h5')
 
 from sklearn.metrics import fbeta_score
 p_valid = model.predict(x_valid, batch_size=128)
@@ -235,6 +238,6 @@ print(len(index_preds))
 print(len(preds))
 preds_data = np.c_[index_preds, preds]
 print(preds_data.shape)
-np.savetxt('submission/submission_keras_cnn_init_epochs_20.csv', preds_data,
+np.savetxt('submission/submission_keras_cnn_init_epochs_50.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
