@@ -36,7 +36,7 @@ from scipy import ndimage
 # keras cnn init epochs=1 -> loss: 0.2567 - acc: 0.9034 - val_loss: 0.2009 - val_acc: 0.9204  # score=0.70001左右； 0.5时F2=0.695 （会有0.0）;0.2时F2=
 # keras cnn init epochs=20 -> loss: 0.1409 - acc: 0.9438 - val_loss: 0.1413 - val_acc: 0.9440 # score=0.81945左右； 0.5时F2=0.8178 （会有0.0）23十个左右
 # keras cnn init epochs=50 -> loss: 0.1042 - acc: 0.9560 - val_loss: 0.1539 - val_acc: 0.9471 # score=0.83314左右； 0.5时F2=0.83305 （会有0.0）6个
-# keras cnn init epochs=800 ->
+# keras cnn init epochs=800 -> loss: 0.0348 - acc: 0.9853 - val_loss: 0.2743 - val_acc: 0.9460  score=0.84155 F2=0.84114 (750就没有提升了)（会有0.0）十几个
 # keras cnn data_all epochs=1 -> loss: 0.2432 - acc: 0.9072 - val_loss: 0.1961 - val_acc: 0.9198 # score  0.5时F2=0.7087
 # keras cnn data_all f2_0.2 data_origin epochs=50 -> loss: 0.1015 - acc: 0.9575 - val_loss: 0.0770 - val_acc: 0.9684 sorce=0.88051 F2=0.93529
 # keras cnn data_all f2_0.2 data_origin epochs=150 -> loss: 0.0648 - acc: 0.9721 - val_loss: 0.0294 - val_acc: 0.9898 score= F2=
@@ -47,6 +47,7 @@ from scipy import ndimage
 #  keras cnn data_35000 f2_0.2 data_origin epochs=4 -> F2=0.84517 score=0.84406
 #  keras cnn data_all f2_0.2 data_origin epochs=4 -> loss: 0.1787 - acc: 0.9305 - val_loss: 0.1651 - val_acc: 0.9334  F2=0.84189
 
+# keras cnn data_origin f2_best data_ epochs_10 ->
 # keras mlp init epochs=10 -> loss: 0.2066 - acc: 0.9182 - val_loss: 0.2041 - val_acc: 0.9177 # score=0.70913；有0.0较多
 
 
@@ -156,9 +157,9 @@ x_test = []
 #     img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/train_' + str(i) + '.jpg')
 #     x_train.append(cv2.resize(img, (32, 32)))
 
-for i in tqdm(range(40669), miniters=1000):
-    img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/test_' + str(i) + '.jpg')
-    x_test.append(cv2.resize(img, (32, 32)))
+# for i in tqdm(range(40669), miniters=1000):
+#     img = cv2.imread('data/test-jpg/test_' + str(i) + '.jpg')
+#     x_test.append(cv2.resize(img, (32, 32)))
 
 # for f in tqdm(train_df.values, miniters=1000):
     # img = cv2.imread('data/train-jpg-sample/{}.jpg'.format(f[0]))
@@ -192,7 +193,7 @@ print(x_test.shape)
 # x_train_tem, x_valid, y_train_tem, y_valid = train_test_split(x_train, y_train, test_size=0.2, random_state=4)
 # x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
 
-model = load_model('model/model_keras_cnn_data_all_epochs_150.h5')
+# model = load_model('model/model_keras_cnn_data_all_epochs_150.h5')
 
 # model = Sequential()
 # model.add(Conv2D(32, kernel_size=(3, 3),
@@ -238,35 +239,35 @@ from sklearn.metrics import fbeta_score
 # np.savetxt('data/data_keras_cnn_data_all_epochs_150_pred.csv', p_train,
 #                delimiter=',', comments='', fmt='%.5f')
 
-# pred_all_data = np.loadtxt('data/data_keras_cnn_data_all_epochs_150_pred.csv', dtype=float, delimiter=",")
+pred_all_data = np.loadtxt('data/data_keras_cnn_data_all_epochs_150_pred.csv', dtype=float, delimiter=",")
 
-# for i in range(99):
-#     print((i+1)/10000.0+0.266)
-#     print(fbeta_score(y_train == 1, pred_all_data > ((i+1)/10000.0+0.266), beta=2, average='samples')) # 随着模型的完善，0.2这个也可能需要改进，多选几个值输出F2；
-#
+for i in range(99):
+    print((i+1)/100.0)
+    print(fbeta_score(y_train == 1, pred_all_data > ((i+1)/100.0), beta=2, average='samples')) # 随着模型的完善，0.2这个也可能需要改进，多选几个值输出F2；
 
-p_test = model.predict(x_test, batch_size=128)
-preds = []
-for i in range(p_test.shape[0]):
-    pred_list = []
-    for j in range(len(label_list)):
-        if p_test[i, j] > 0.268:
-            pred_list.append(label_list[j])
-    if len(pred_list) == 0:
-        pred_list.append(label_list[np.argmax(p_test[i])])
-        print(i)
-        print(max(p_test[i]))
-    preds.append(' '.join(pred_list))
+
+# p_test = model.predict(x_test, batch_size=128)
+# preds = []
+# for i in range(p_test.shape[0]):
+#     pred_list = []
+#     for j in range(len(label_list)):
+#         if p_test[i, j] > 0.5:
+#             pred_list.append(label_list[j])
+    # if len(pred_list) == 0:
+    #     pred_list.append(label_list[np.argmax(p_test[i])])
+    #     print(i)
+    #     print(max(p_test[i]))
+    # preds.append(' '.join(pred_list))
 
 # python2
-index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
+# index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
 ## python3
 # index_preds = list(map(lambda x: "test_" + str(x), range(len(preds))))
 
-print(len(index_preds))
-print(len(preds))
-preds_data = np.c_[index_preds, preds]
-print(preds_data.shape)
-np.savetxt('submission/submission_keras_cnn_data_all_epochs_150_test.csv', preds_data,
-               delimiter=',', header='image_name,tags', comments='', fmt='%s')
+# print(len(index_preds))
+# print(len(preds))
+# preds_data = np.c_[index_preds, preds]
+# print(preds_data.shape)
+# np.savetxt('submission/submission_keras_cnn_data_all_epochs_150_test_2.csv', preds_data,
+#                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
