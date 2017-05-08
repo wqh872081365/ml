@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.model_selection import train_test_split
+from keras.models import load_model
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import scipy
@@ -36,6 +37,15 @@ from scipy import ndimage
 # keras cnn init epochs=20 -> loss: 0.1409 - acc: 0.9438 - val_loss: 0.1413 - val_acc: 0.9440 # score=0.81945左右； 0.5时F2=0.8178 （会有0.0）23十个左右
 # keras cnn init epochs=50 -> loss: 0.1042 - acc: 0.9560 - val_loss: 0.1539 - val_acc: 0.9471 # score=0.83314左右； 0.5时F2=0.83305 （会有0.0）6个
 # keras cnn init epochs=800 ->
+# keras cnn data_all epochs=1 -> loss: 0.2432 - acc: 0.9072 - val_loss: 0.1961 - val_acc: 0.9198 # score  0.5时F2=0.7087
+# keras cnn data_all f2_0.2 data_origin epochs=50 -> loss: 0.1015 - acc: 0.9575 - val_loss: 0.0770 - val_acc: 0.9684 sorce=0.88051 F2=0.93529
+# keras cnn data_all f2_0.2 data_origin epochs=150 -> loss: 0.0648 - acc: 0.9721 - val_loss: 0.0294 - val_acc: 0.9898 score= F2=
+
+#  keras cnn data_35000 f2_0.2 epochs=4 -> loss: 0.1793 - acc: 0.9303 - val_loss: 0.1682 - val_acc: 0.9344  score=0.83904  F2=0.83914
+#  keras cnn data_35000 f2_0.1 epochs=4 -> F2=0.83325
+#  keras cnn data_35000 f2_0.3 epochs=4 -> F2=0.82255
+#  keras cnn data_35000 f2_0.2 data_origin epochs=4 -> F2=0.84517 score=0.84406
+#  keras cnn data_all f2_0.2 data_origin epochs=4 -> loss: 0.1787 - acc: 0.9305 - val_loss: 0.1651 - val_acc: 0.9334  F2=0.84189
 
 # keras mlp init epochs=10 -> loss: 0.2066 - acc: 0.9182 - val_loss: 0.2041 - val_acc: 0.9177 # score=0.70913；有0.0较多
 
@@ -142,13 +152,13 @@ x_test = []
 # label_map = {l: i for i, l in enumerate(labels)}
 # inv_label_map = {i: l for l, i in label_map.items()}
 
-for i in tqdm(range(40479), miniters=1000):
-    img = cv2.imread('data/train-jpg-32/train_' + str(i) + '.png')
-    x_train.append(img)
+# for i in tqdm(range(40479), miniters=1000):
+#     img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/train_' + str(i) + '.jpg')
+#     x_train.append(cv2.resize(img, (32, 32)))
 
 for i in tqdm(range(40669), miniters=1000):
-    img = cv2.imread('data/test-jpg-32/test_' + str(i) + '.png')
-    x_test.append(img)
+    img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/test_' + str(i) + '.jpg')
+    x_test.append(cv2.resize(img, (32, 32)))
 
 # for f in tqdm(train_df.values, miniters=1000):
     # img = cv2.imread('data/train-jpg-sample/{}.jpg'.format(f[0]))
@@ -179,49 +189,68 @@ print(x_train.shape)
 print(y_train.shape)
 print(x_test.shape)
 
-x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.19049, random_state=4)
+# x_train_tem, x_valid, y_train_tem, y_valid = train_test_split(x_train, y_train, test_size=0.2, random_state=4)
+# x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
 
-model = Sequential()
-model.add(Conv2D(32, kernel_size=(3, 3),
-                 activation='relu',
-                 input_shape=(32, 32, 3)))
+model = load_model('model/model_keras_cnn_data_all_epochs_150.h5')
 
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
-model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(17, activation='sigmoid'))
+# model = Sequential()
+# model.add(Conv2D(32, kernel_size=(3, 3),
+#                  activation='relu',
+#                  input_shape=(32, 32, 3)))
+#
+# model.add(Conv2D(64, (3, 3), activation='relu'))
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+# model.add(Dropout(0.25))
+# model.add(Flatten())
+# model.add(Dense(128, activation='relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(17, activation='sigmoid'))
+#
+# model.summary()
+#
+# model.compile(loss='binary_crossentropy',
+#               # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
+#               optimizer='adam',
+#               metrics=['accuracy'])
 
-model.summary()
+# model.fit(x_train, y_train,
+#           batch_size=128,
+#           epochs=100,
+#           verbose=1,
+#           validation_data=(x_valid, y_valid))
+# score = model.evaluate(x_valid, y_valid, verbose=0)
+# print('Test loss:', score[0])
+# print('Test accuracy:', score[1])
+#
+# model.save('model/model_keras_cnn_data_all_epochs_150.h5')
 
-model.compile(loss='binary_crossentropy',
-              # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
-              optimizer='adam',
-              metrics=['accuracy'])
+# epochs=50
+# 0.2 F2= 0.93619
+# 0.225 F2=0.9373
 
-model.fit(x_train, y_train,
-          batch_size=128,
-          epochs=50,
-          verbose=1,
-          validation_data=(x_valid, y_valid))
-score = model.evaluate(x_valid, y_valid, verbose=0)
-print('Test loss:', score[0])
-print('Test accuracy:', score[1])
-
-model.save('model/model_keras_cnn_init_epochs_50.h5')
-
+# epochs=150
+# 0.2 F2=0.98231
+# 0.268 F2=0.983795
 from sklearn.metrics import fbeta_score
-p_valid = model.predict(x_valid, batch_size=128)
-print(fbeta_score(y_valid == 1, p_valid > 0.5, beta=2, average='samples'))
+
+# p_train = model.predict(x_train, batch_size=128)
+# np.savetxt('data/data_keras_cnn_data_all_epochs_150_pred.csv', p_train,
+#                delimiter=',', comments='', fmt='%.5f')
+
+# pred_all_data = np.loadtxt('data/data_keras_cnn_data_all_epochs_150_pred.csv', dtype=float, delimiter=",")
+
+# for i in range(99):
+#     print((i+1)/10000.0+0.266)
+#     print(fbeta_score(y_train == 1, pred_all_data > ((i+1)/10000.0+0.266), beta=2, average='samples')) # 随着模型的完善，0.2这个也可能需要改进，多选几个值输出F2；
+#
 
 p_test = model.predict(x_test, batch_size=128)
 preds = []
 for i in range(p_test.shape[0]):
     pred_list = []
     for j in range(len(label_list)):
-        if p_test[i, j] > 0.5:
+        if p_test[i, j] > 0.268:
             pred_list.append(label_list[j])
     if len(pred_list) == 0:
         pred_list.append(label_list[np.argmax(p_test[i])])
@@ -238,6 +267,6 @@ print(len(index_preds))
 print(len(preds))
 preds_data = np.c_[index_preds, preds]
 print(preds_data.shape)
-np.savetxt('submission/submission_keras_cnn_init_epochs_50.csv', preds_data,
+np.savetxt('submission/submission_keras_cnn_data_all_epochs_150_test.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
