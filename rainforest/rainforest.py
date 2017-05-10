@@ -5,6 +5,14 @@
 # keras cnn data_35000 f2_0.235 data_origin epochs=11 -> loss: 0.1565 - acc: 0.9382 - val_loss: 0.1470 - val_acc: 0.9418 F2=0.85519 score=0.85192
 # keras cnn data_35000 f2_ data_origin epochs=200 -> F2= score=
 
+# v2
+# keras cnn data_35000 f2_0.188 data_origin optimizer=adam lr=0.001 epochs=10 -> loss: 0.1651 - acc: 0.9354 - val_loss: 0.1529 - val_acc: 0.9399 F2=0.85493 score=0.85520
+# keras cnn data_35000 f2_0.144 data_origin optimizer=adam lr=0.0001 epochs=10 -> loss: 0.2032 - acc: 0.9209 - val_loss: 0.1866 - val_acc: 0.9251 F2=0.81318
+# keras cnn data_35000 f2_0.216 data_origin optimizer=adam lr=0.001 epochs=40 -> loss: 0.1164 - acc: 0.9515 - val_loss: 0.1414 - val_acc: 0.9471 F2=0.87793 score=
+# keras cnn data_0.9 f2_0.208 data_origin data*4 optimizer=adam lr=0.001 epochs=10 -> loss: 0.1350 - acc: 0.9463 - val_loss: 0.1268 - val_acc: 0.9484 F2=0.88531 score=0.88291
+
+
+
 import matplotlib
 matplotlib.use('TkAgg')
 
@@ -30,7 +38,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import load_model
-from keras.optimizers import RMSprop, Adadelta
+from keras.optimizers import RMSprop, Adadelta, Adam
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -104,13 +112,22 @@ def kears_cnn():
     test_name_list = test_df.values[:, 0]
     print(test_name_list.shape)
 
+    y_train_value = train_df.values[:, 2:19]
+
     x_train = []
+    y_train = []
     x_test = []
     x_file = []
 
     for i in tqdm(range(40479), miniters=1000):
         img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/' + train_name_list[i] + '.jpg')
-        x_train.append(cv2.resize(img, (32, 32)))
+        img_32 = cv2.resize(img, (32, 32))
+        x_train.append(img_32)
+        x_train.append(img_32[::-1])
+        x_train.append(img_32[:, ::-1])
+        x_train.append(img_32[:, ::-1][::-1])
+
+        y_train.extend([y_train_value[i], y_train_value[i], y_train_value[i], y_train_value[i]])
 
     for i in tqdm(range(40669), miniters=1000):
         img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/' + test_name_list[i] + '.jpg')
@@ -121,16 +138,18 @@ def kears_cnn():
         x_file.append(cv2.resize(img, (32, 32)))
 
     x_train = np.array(x_train, np.float16) / 255.
+    y_train = np.array(y_train, np.int)
     x_test = np.array(x_test, np.float16) / 255.
     x_file = np.array(x_file, np.float16) / 255.
-    y_train = train_df.values[:, 2:19]
+
 
     print(x_train.shape)
     print(y_train.shape)
     print(x_test.shape)
     print(x_file.shape)
 
-    x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
+    # x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
+    x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1, random_state=4)
 
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(3, 3),
@@ -149,7 +168,7 @@ def kears_cnn():
 
     model.compile(loss='binary_crossentropy',
                   # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
-                  optimizer='adam',
+                  optimizer=Adam(lr=0.001),  # adam 854931990138
                   metrics=['accuracy'])
 
     model.fit(x_train, y_train,
@@ -161,7 +180,7 @@ def kears_cnn():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_v2_optimizer_adam_epochs_10.h5')
+    model.save('model/model_keras_cnn_data_4d_v2_optimizer_adam_epochs_10.h5')
 
     from sklearn.metrics import fbeta_score
 
@@ -197,7 +216,7 @@ def kears_cnn():
     # print(len(preds))
     preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_v2_optimizer_adam_epochs_10.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_data_4d_v2_optimizer_adam_epochs_10.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
@@ -285,49 +304,66 @@ def keras_mlp():
 
 
 def predict_load_model():
-    train_df = pd.read_csv("data/train_list.csv")
+    train_df = pd.read_csv("data/train_v2_list.csv")
     label_list = train_df.columns.values[2:]
+    train_name_list = train_df.values[:, 0]
+
+    test_df = pd.read_csv("data/sample_submission_v2.csv")
+    test_name_list = test_df.values[:, 0]
+    print(test_name_list.shape)
 
     x_train = []
     x_test = []
+    x_file = []
 
     for i in tqdm(range(40479), miniters=1000):
-        img = cv2.imread('data/train-jpg/train_' + str(i) + '.jpg')
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/' + train_name_list[i] + '.jpg')
         x_train.append(cv2.resize(img, (32, 32)))
 
     for i in tqdm(range(40669), miniters=1000):
-        img = cv2.imread('data/test-jpg/test_' + str(i) + '.jpg')
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/' + test_name_list[i] + '.jpg')
         x_test.append(cv2.resize(img, (32, 32)))
+
+    for i in tqdm(range(20522), miniters=1000):
+        img = cv2.imread(
+            '/users/wangqihui/Downloads/rainforest/test-jpg-additional/' + test_name_list[40669 + i] + '.jpg')
+        x_file.append(cv2.resize(img, (32, 32)))
 
     x_train = np.array(x_train, np.float16) / 255.
     x_test = np.array(x_test, np.float16) / 255.
+    x_file = np.array(x_file, np.float16) / 255.
     y_train = train_df.values[:, 2:19]
 
     print(x_train.shape)
     print(y_train.shape)
     print(x_test.shape)
+    print(x_file.shape)
 
     x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
 
-    model = load_model('model/model_keras_cnn_data_origin_epochs_10.h5')
+    model = load_model('model/model_keras_cnn_data_v2_optimizer_adam_epochs_10.h5')
+
+    model.compile(loss='binary_crossentropy',
+                  # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
+                  optimizer=Adam(lr=0.001),  # adam 854931990138
+                  metrics=['accuracy'])
 
     model.fit(x_train, y_train,
               batch_size=128,
-              epochs=190,
-              verbose=2,
+              epochs=30,
+              verbose=1,
               validation_data=(x_valid, y_valid))
     score = model.evaluate(x_valid, y_valid, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_origin_epochs_200.h5')
+    model.save('model/model_keras_cnn_data_v2_optimizer_adam_epochs_40.h5')
 
     from sklearn.metrics import fbeta_score
 
     p_valid = model.predict(x_valid, batch_size=128)
-    np.savetxt('data/data_keras_cnn_data_origin_epochs_200_pred.csv', p_valid,
-                   delimiter=',', comments='', fmt='%.5f')
-    # p_valid = np.loadtxt('data/data_keras_cnn_data_origin_epochs_10_pred.csv', dtype=float, delimiter=",")
+    # np.savetxt('data/data_keras_cnn_data_origin_epochs_10_pred.csv', p_valid,
+    #                delimiter=',', comments='', fmt='%.5f')
 
     dict_pred = {}
     for i in range(999):
@@ -336,9 +372,7 @@ def predict_load_model():
     print(max(dict_pred, key=dict_pred.get))
     print(dict_pred[max(dict_pred, key=dict_pred.get)])
 
-    print(fbeta_score(y_valid == 1, p_valid > 0.2, beta=2, average='samples'))
-
-    p_test = model.predict(x_test, batch_size=128)
+    p_test = model.predict(np.concatenate((x_test, x_file)), batch_size=128)
     preds = []
     for i in range(p_test.shape[0]):
         pred_list = []
@@ -349,19 +383,18 @@ def predict_load_model():
             pred_list.append(label_list[np.argmax(p_test[i])])
             print(i)
             print(max(p_test[i]))
-            print(label_list[np.argmax(p_test[i])])
         preds.append(' '.join(pred_list))
-
+    print(len(preds))
     # python2
-    index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
+    # index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
     ## python3
     # index_preds = list(map(lambda x: "test_" + str(x), range(len(preds))))
 
-    print(len(index_preds))
-    print(len(preds))
-    preds_data = np.c_[index_preds, preds]
+    # print(len(index_preds))
+    # print(len(preds))
+    preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_origin_epochs_200.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_data_v2_optimizer_adam_epochs_40.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
