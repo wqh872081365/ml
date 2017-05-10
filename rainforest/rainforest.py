@@ -30,7 +30,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import load_model
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, Adadelta
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -39,6 +39,28 @@ def make_cooccurence_matrix(df_labels, labels):
     c_matrix_35000 = (numeric_df.iloc[0:35000, 0:17]).T.dot(numeric_df.iloc[0:35000, 0:17])
     sns.heatmap(c_matrix, xticklabels=True, yticklabels=True)
     return c_matrix
+
+
+def get_train_list():
+    labels_df = pd.read_csv("data/train_v2.csv")
+    # print(labels_df.head())
+    #
+    # # Build list with unique labels
+    label_list = []
+    for tag_str in labels_df.tags.values:
+        labels = tag_str.split(' ')
+        for label in labels:
+            if label not in label_list:
+                label_list.append(label)
+
+    # datas_df = pd.read_csv("data/sample_submission.csv")
+
+    # Add onehot features for every label
+    for label in label_list:
+        labels_df[label] = labels_df['tags'].apply(lambda x: 1 if label in x.split(' ') else 0)
+    # # Display head
+    print(labels_df.head())
+    labels_df.to_csv("data/train_v2_list.csv", index=False)
 
 
 def test_submission_ver():
@@ -74,27 +96,39 @@ def save_image():
 
 
 def kears_cnn():
-    train_df = pd.read_csv("data/train_list.csv")
+    train_df = pd.read_csv("data/train_v2_list.csv")
     label_list = train_df.columns.values[2:]
+    train_name_list = train_df.values[:, 0]
+
+    test_df = pd.read_csv("data/sample_submission_v2.csv")
+    test_name_list = test_df.values[:, 0]
+    print(test_name_list.shape)
 
     x_train = []
     x_test = []
+    x_file = []
 
     for i in tqdm(range(40479), miniters=1000):
-        img = cv2.imread('data/train-jpg/train_' + str(i) + '.jpg')
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/' + train_name_list[i] + '.jpg')
         x_train.append(cv2.resize(img, (32, 32)))
 
     for i in tqdm(range(40669), miniters=1000):
-        img = cv2.imread('data/test-jpg/test_' + str(i) + '.jpg')
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/' + test_name_list[i] + '.jpg')
         x_test.append(cv2.resize(img, (32, 32)))
+
+    for i in tqdm(range(20522), miniters=1000):
+        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg-additional/' + test_name_list[40669+i] + '.jpg')
+        x_file.append(cv2.resize(img, (32, 32)))
 
     x_train = np.array(x_train, np.float16) / 255.
     x_test = np.array(x_test, np.float16) / 255.
+    x_file = np.array(x_file, np.float16) / 255.
     y_train = train_df.values[:, 2:19]
 
     print(x_train.shape)
     print(y_train.shape)
     print(x_test.shape)
+    print(x_file.shape)
 
     x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
 
@@ -127,13 +161,13 @@ def kears_cnn():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_origin_epochs_10.h5')
+    model.save('model/model_keras_cnn_data_v2_optimizer_adam_epochs_10.h5')
 
     from sklearn.metrics import fbeta_score
 
     p_valid = model.predict(x_valid, batch_size=128)
-    np.savetxt('data/data_keras_cnn_data_origin_epochs_10_pred.csv', p_valid,
-                   delimiter=',', comments='', fmt='%.5f')
+    # np.savetxt('data/data_keras_cnn_data_origin_epochs_10_pred.csv', p_valid,
+    #                delimiter=',', comments='', fmt='%.5f')
 
     dict_pred = {}
     for i in range(999):
@@ -141,29 +175,29 @@ def kears_cnn():
     print(max(dict_pred, key=dict_pred.get))
     print(dict_pred[max(dict_pred, key=dict_pred.get)])
 
-    p_test = model.predict(x_test, batch_size=128)
+    p_test = model.predict(np.concatenate((x_test, x_file)), batch_size=128)
     preds = []
     for i in range(p_test.shape[0]):
         pred_list = []
         for j in range(len(label_list)):
-            if p_test[i, j] > dict_pred[max(dict_pred, key=dict_pred.get)]:
+            if p_test[i, j] > max(dict_pred, key=dict_pred.get):
                 pred_list.append(label_list[j])
         if len(pred_list) == 0:
             pred_list.append(label_list[np.argmax(p_test[i])])
             print(i)
             print(max(p_test[i]))
         preds.append(' '.join(pred_list))
-
+    print(len(preds))
     # python2
-    index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
+    # index_preds = map(lambda x: "test_" + str(x), range(len(preds)))
     ## python3
     # index_preds = list(map(lambda x: "test_" + str(x), range(len(preds))))
 
-    print(len(index_preds))
-    print(len(preds))
-    preds_data = np.c_[index_preds, preds]
+    # print(len(index_preds))
+    # print(len(preds))
+    preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_origin_epochs_10.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_data_v2_optimizer_adam_epochs_10.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
@@ -352,10 +386,11 @@ def get_train_test_data():
 def main():
     # test_submission_ver()
     # save_image()
-    # kears_cnn()
-    predict_load_model()
+    kears_cnn()
+    # predict_load_model()
     # keras_mlp()
     # get_train_test_data()
+    # get_train_list()
 
 
 if __name__ == '__main__':
