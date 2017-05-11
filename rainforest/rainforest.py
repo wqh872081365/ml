@@ -10,7 +10,7 @@
 # keras cnn data_35000 f2_0.144 data_origin optimizer=adam lr=0.0001 epochs=10 -> loss: 0.2032 - acc: 0.9209 - val_loss: 0.1866 - val_acc: 0.9251 F2=0.81318
 # keras cnn data_35000 f2_0.216 data_origin optimizer=adam lr=0.001 epochs=40 -> loss: 0.1164 - acc: 0.9515 - val_loss: 0.1414 - val_acc: 0.9471 F2=0.87793 score=
 # keras cnn data_0.9 f2_0.208 data_origin data*4 optimizer=adam lr=0.001 epochs=10 -> loss: 0.1350 - acc: 0.9463 - val_loss: 0.1268 - val_acc: 0.9484 F2=0.88531 score=0.88291
-
+# keras cnn data_0.9 f2_0.209 data_origin drop_0.5 optimizer=adam lr=0.001 epochs=10 -> loss: 0.1582 - acc: 0.9378 - val_loss: 0.1505 - val_acc: 0.9389 F2=0.86078 score=0.86417
 
 
 import matplotlib
@@ -120,7 +120,7 @@ def kears_cnn():
     x_file = []
 
     for i in tqdm(range(40479), miniters=1000):
-        img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/' + train_name_list[i] + '.jpg')
+        img = cv2.imread('data/train-jpg/' + train_name_list[i] + '.jpg')
         img_32 = cv2.resize(img, (32, 32))
         x_train.append(img_32)
         x_train.append(img_32[::-1])
@@ -128,13 +128,14 @@ def kears_cnn():
         x_train.append(img_32[:, ::-1][::-1])
 
         y_train.extend([y_train_value[i], y_train_value[i], y_train_value[i], y_train_value[i]])
+        # y_train.extend([y_train_value[i]])
 
     for i in tqdm(range(40669), miniters=1000):
-        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/' + test_name_list[i] + '.jpg')
+        img = cv2.imread('data/test-jpg/' + test_name_list[i] + '.jpg')
         x_test.append(cv2.resize(img, (32, 32)))
 
     for i in tqdm(range(20522), miniters=1000):
-        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg-additional/' + test_name_list[40669+i] + '.jpg')
+        img = cv2.imread('data/test-jpg-additional/' + test_name_list[40669+i] + '.jpg')
         x_file.append(cv2.resize(img, (32, 32)))
 
     x_train = np.array(x_train, np.float16) / 255.
@@ -158,7 +159,7 @@ def kears_cnn():
 
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
+    model.add(Dropout(0.5))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
     model.add(Dropout(0.5))
@@ -174,13 +175,13 @@ def kears_cnn():
     model.fit(x_train, y_train,
               batch_size=128,
               epochs=10,
-              verbose=1,
+              verbose=80,
               validation_data=(x_valid, y_valid))
     score = model.evaluate(x_valid, y_valid, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_4d_v2_optimizer_adam_epochs_10.h5')
+    model.save('model/model_keras_cnn_data_4d_v2_optimizer_adam_drop_050_epochs_80.h5')
 
     from sklearn.metrics import fbeta_score
 
@@ -216,7 +217,7 @@ def kears_cnn():
     # print(len(preds))
     preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_4d_v2_optimizer_adam_epochs_10.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_data_4d_v2_optimizer_adam_drop_050_epochs_80.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
