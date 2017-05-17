@@ -11,6 +11,10 @@
 # keras cnn data_35000 f2_0.216 data_origin optimizer=adam lr=0.001 epochs=40 -> loss: 0.1164 - acc: 0.9515 - val_loss: 0.1414 - val_acc: 0.9471 F2=0.87793 score=
 # keras cnn data_0.9 f2_0.208 data_origin data*4 optimizer=adam lr=0.001 epochs=10 -> loss: 0.1350 - acc: 0.9463 - val_loss: 0.1268 - val_acc: 0.9484 F2=0.88531 score=0.88291
 # keras cnn data_0.9 f2_0.209 data_origin drop_0.5 optimizer=adam lr=0.001 epochs=10 -> loss: 0.1582 - acc: 0.9378 - val_loss: 0.1505 - val_acc: 0.9389 F2=0.86078 score=0.86417
+# keras cnn data_0.9 f2_0.189 data_origin data*4 drop_0.5 optimizer=adam lr=0.001 epochs=10 -> F2=0.8868 score=0.88490
+# keras cnn data_0.9 f2_0.227 data_origin data*4 drop_0.5 optimizer=adam lr=0.001 reduce epochs=178 -> loss: 0.1019 - acc: 0.9590 - val_loss: 0.1108 - val_acc: 0.9566 F2=0.904966 score=0.90191
+# keras cnn data_0.9 f2_0.182 data_origin ImageDataGenerator drop_0.5 optimizer=adam lr=0.001 reduce epochs=280 -> loss: 0.1270 - acc: 0.9506 - val_loss: 0.1165 - val_acc: 0.9526 F2=0.8972 score=0.89957
+# keras cnn data_0.9 f2_ data_origin data*4 ImageDataGenerator drop_0.25 optimizer=adam lr=0.001 reduce epochs=200 ->
 
 
 import matplotlib
@@ -32,6 +36,7 @@ from scipy import ndimage
 import cv2
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+import json
 
 import keras as k
 from keras.models import Sequential
@@ -39,6 +44,9 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import load_model
 from keras.optimizers import RMSprop, Adadelta, Adam
+from keras import losses
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.preprocessing.image import ImageDataGenerator
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -152,6 +160,20 @@ def kears_cnn():
     # x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
     x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1, random_state=4)
 
+    datagen = ImageDataGenerator(
+        featurewise_center=False,  # set input mean to 0 over the dataset
+        samplewise_center=False,  # set each sample mean to 0
+        featurewise_std_normalization=False,  # divide inputs by std of the dataset
+        samplewise_std_normalization=False,  # divide each input by its std
+        zca_whitening=False,  # apply ZCA whitening
+        rotation_range=10,  # randomly rotate images in the range (degrees, 0 to 180)
+        width_shift_range=0.05,  # randomly shift images horizontally (fraction of total width)
+        height_shift_range=0.05,  # randomly shift images vertically (fraction of total height)
+        horizontal_flip=True,  # randomly flip images
+        vertical_flip=False)  # randomly flip images
+
+    datagen.fit(x_train)
+
     model = Sequential()
     model.add(Conv2D(32, kernel_size=(3, 3),
                      activation='relu',
@@ -159,7 +181,7 @@ def kears_cnn():
 
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
     model.add(Dropout(0.5))
@@ -167,21 +189,38 @@ def kears_cnn():
 
     model.summary()
 
-    model.compile(loss='binary_crossentropy',
+    model.compile(loss=losses.binary_crossentropy,
                   # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
                   optimizer=Adam(lr=0.001),  # adam 854931990138
                   metrics=['accuracy'])
 
-    model.fit(x_train, y_train,
-              batch_size=128,
-              epochs=10,
-              verbose=80,
-              validation_data=(x_valid, y_valid))
+    early_stopping = EarlyStopping(monitor='val_loss', patience=100)
+    reduce_lr_on_Plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=0, mode='auto',
+                                      epsilon=0.0001, cooldown=0, min_lr=0)
+
+    hist = model.fit_generator(datagen.flow(x_train, y_train,
+                                     batch_size=128),
+                        steps_per_epoch=x_train.shape[0]//128,
+                        epochs=200,
+                        verbose=2,
+                        validation_data=(x_valid, y_valid),
+                        callbacks=[early_stopping, reduce_lr_on_Plateau])
+
+    # hist = model.fit(x_train, y_train,
+    #           batch_size=128,
+    #           epochs=300,
+    #           verbose=1,
+    #           validation_data=(x_valid, y_valid),
+    #           callbacks=[early_stopping, reduce_lr_on_Plateau])
+    print(hist.history)
+    with open('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.json', 'w') as f:
+        json.dump(hist.history, f)
+
     score = model.evaluate(x_valid, y_valid, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_4d_v2_optimizer_adam_drop_050_epochs_80.h5')
+    model.save('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.h5')
 
     from sklearn.metrics import fbeta_score
 
@@ -217,7 +256,7 @@ def kears_cnn():
     # print(len(preds))
     preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_4d_v2_optimizer_adam_drop_050_epochs_80.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
