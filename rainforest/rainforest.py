@@ -14,7 +14,7 @@
 # keras cnn data_0.9 f2_0.189 data_origin data*4 drop_0.5 optimizer=adam lr=0.001 epochs=10 -> F2=0.8868 score=0.88490
 # keras cnn data_0.9 f2_0.227 data_origin data*4 drop_0.5 optimizer=adam lr=0.001 reduce epochs=178 -> loss: 0.1019 - acc: 0.9590 - val_loss: 0.1108 - val_acc: 0.9566 F2=0.904966 score=0.90191
 # keras cnn data_0.9 f2_0.182 data_origin ImageDataGenerator drop_0.5 optimizer=adam lr=0.001 reduce epochs=280 -> loss: 0.1270 - acc: 0.9506 - val_loss: 0.1165 - val_acc: 0.9526 F2=0.8972 score=0.89957
-# keras cnn data_0.9 f2_ data_origin data*4 ImageDataGenerator drop_0.25 optimizer=adam lr=0.001 reduce epochs=200 ->
+# keras cnn data_0.9 f2_0.2 data_origin data*4 ImageDataGenerator drop_0.25 optimizer=adam lr=0.001 reduce epochs=199 -> acc:0.95796 loss:0.10678 val_acc: 0.96189 val_loss: 0.095187 F2=0.9166 score=0.90697
 
 
 import matplotlib
@@ -45,7 +45,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.models import load_model
 from keras.optimizers import RMSprop, Adadelta, Adam
 from keras import losses
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 
 
@@ -197,14 +197,17 @@ def kears_cnn():
     early_stopping = EarlyStopping(monitor='val_loss', patience=100)
     reduce_lr_on_Plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=0, mode='auto',
                                       epsilon=0.0001, cooldown=0, min_lr=0)
+    model_save = ModelCheckpoint(filepath='model/5-17/{epoch}.h5', monitor='val_loss', verbose=0, save_best_only=False,
+                                    save_weights_only=False, mode='auto', period=10)
 
     hist = model.fit_generator(datagen.flow(x_train, y_train,
                                      batch_size=128),
                         steps_per_epoch=x_train.shape[0]//128,
                         epochs=200,
                         verbose=2,
+                        workers=4,
                         validation_data=(x_valid, y_valid),
-                        callbacks=[early_stopping, reduce_lr_on_Plateau])
+                        callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
 
     # hist = model.fit(x_train, y_train,
     #           batch_size=128,
@@ -213,8 +216,11 @@ def kears_cnn():
     #           validation_data=(x_valid, y_valid),
     #           callbacks=[early_stopping, reduce_lr_on_Plateau])
     print(hist.history)
-    with open('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.json', 'w') as f:
-        json.dump(hist.history, f)
+    try:
+        with open('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.json', 'w') as f:
+            json.dump(hist.history, f)
+    except:
+        pass
 
     score = model.evaluate(x_valid, y_valid, verbose=0)
     print('Test loss:', score[0])
@@ -352,52 +358,116 @@ def predict_load_model():
     test_name_list = test_df.values[:, 0]
     print(test_name_list.shape)
 
+    y_train_value = train_df.values[:, 2:19]
+
     x_train = []
+    y_train = []
     x_test = []
     x_file = []
 
     for i in tqdm(range(40479), miniters=1000):
-        img = cv2.imread('/users/wangqihui/Downloads/rainforest/train-jpg/' + train_name_list[i] + '.jpg')
-        x_train.append(cv2.resize(img, (32, 32)))
+        img = cv2.imread('data/train-jpg/' + train_name_list[i] + '.jpg')
+        img_32 = cv2.resize(img, (32, 32))
+        x_train.append(img_32)
+        x_train.append(img_32[::-1])
+        x_train.append(img_32[:, ::-1])
+        x_train.append(img_32[:, ::-1][::-1])
+
+        y_train.extend([y_train_value[i], y_train_value[i], y_train_value[i], y_train_value[i]])
+        # y_train.extend([y_train_value[i]])
 
     for i in tqdm(range(40669), miniters=1000):
-        img = cv2.imread('/users/wangqihui/Downloads/rainforest/test-jpg/' + test_name_list[i] + '.jpg')
+        img = cv2.imread('data/test-jpg/' + test_name_list[i] + '.jpg')
         x_test.append(cv2.resize(img, (32, 32)))
 
     for i in tqdm(range(20522), miniters=1000):
-        img = cv2.imread(
-            '/users/wangqihui/Downloads/rainforest/test-jpg-additional/' + test_name_list[40669 + i] + '.jpg')
+        img = cv2.imread('data/test-jpg-additional/' + test_name_list[40669 + i] + '.jpg')
         x_file.append(cv2.resize(img, (32, 32)))
 
     x_train = np.array(x_train, np.float16) / 255.
+    y_train = np.array(y_train, np.int)
     x_test = np.array(x_test, np.float16) / 255.
     x_file = np.array(x_file, np.float16) / 255.
-    y_train = train_df.values[:, 2:19]
 
     print(x_train.shape)
     print(y_train.shape)
     print(x_test.shape)
     print(x_file.shape)
 
-    x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
+    # x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
+    x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1, random_state=4)
 
-    model = load_model('model/model_keras_cnn_data_v2_optimizer_adam_epochs_10.h5')
+    # datagen = ImageDataGenerator(
+    #     featurewise_center=False,  # set input mean to 0 over the dataset
+    #     samplewise_center=False,  # set each sample mean to 0
+    #     featurewise_std_normalization=False,  # divide inputs by std of the dataset
+    #     samplewise_std_normalization=False,  # divide each input by its std
+    #     zca_whitening=False,  # apply ZCA whitening
+    #     rotation_range=10,  # randomly rotate images in the range (degrees, 0 to 180)
+    #     width_shift_range=0.05,  # randomly shift images horizontally (fraction of total width)
+    #     height_shift_range=0.05,  # randomly shift images vertically (fraction of total height)
+    #     horizontal_flip=True,  # randomly flip images
+    #     vertical_flip=False)  # randomly flip images
 
-    model.compile(loss='binary_crossentropy',
-                  # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
-                  optimizer=Adam(lr=0.001),  # adam 854931990138
-                  metrics=['accuracy'])
+    # datagen.fit(x_train)
 
-    model.fit(x_train, y_train,
-              batch_size=128,
-              epochs=30,
-              verbose=1,
-              validation_data=(x_valid, y_valid))
-    score = model.evaluate(x_valid, y_valid, verbose=0)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
+    # model = Sequential()
+    # model.add(Conv2D(32, kernel_size=(3, 3),
+    #                  activation='relu',
+    #                  input_shape=(32, 32, 3)))
+    #
+    # model.add(Conv2D(64, (3, 3), activation='relu'))
+    # model.add(MaxPooling2D(pool_size=(2, 2)))
+    # model.add(Dropout(0.25))
+    # model.add(Flatten())
+    # model.add(Dense(128, activation='relu'))
+    # model.add(Dropout(0.5))
+    # model.add(Dense(17, activation='sigmoid'))
 
-    model.save('model/model_keras_cnn_data_v2_optimizer_adam_epochs_40.h5')
+    model = load_model('model/5-17/199')
+
+    model.summary()
+
+    # model.compile(loss=losses.binary_crossentropy,
+    #               # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
+    #               optimizer=Adam(lr=0.001),  # adam 854931990138
+    #               metrics=['accuracy'])
+
+    # early_stopping = EarlyStopping(monitor='val_loss', patience=100)
+    # reduce_lr_on_Plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=0, mode='auto',
+    #                                          epsilon=0.0001, cooldown=0, min_lr=0)
+    # model_save = ModelCheckpoint(filepath='model/5-17/{epoch}.h5', monitor='val_loss', verbose=0, save_best_only=False,
+    #                              save_weights_only=False, mode='auto', period=10)
+    #
+    # hist = model.fit_generator(datagen.flow(x_train, y_train,
+    #                                         batch_size=128),
+    #                            steps_per_epoch=x_train.shape[0] // 128,
+    #                            epochs=200,
+    #                            verbose=2,
+    #                            workers=4,
+    #                            validation_data=(x_valid, y_valid),
+    #                            callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
+
+    # hist = model.fit(x_train, y_train,
+    #           batch_size=128,
+    #           epochs=300,
+    #           verbose=1,
+    #           validation_data=(x_valid, y_valid),
+    #           callbacks=[early_stopping, reduce_lr_on_Plateau])
+    # print(hist.history)
+    # try:
+    #     with open(
+    #             'model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.json',
+    #             'w') as f:
+    #         json.dump(hist.history, f)
+    # except:
+    #     pass
+
+    # score = model.evaluate(x_valid, y_valid, verbose=0)
+    # print('Test loss:', score[0])
+    # print('Test accuracy:', score[1])
+
+    model.save('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_199.h5')
 
     from sklearn.metrics import fbeta_score
 
@@ -434,8 +504,10 @@ def predict_load_model():
     # print(len(preds))
     preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_v2_optimizer_adam_epochs_40.csv', preds_data,
-               delimiter=',', header='image_name,tags', comments='', fmt='%s')
+    np.savetxt(
+        'submission/submission_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_199.csv',
+        preds_data,
+        delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
 def get_train_test_data():
