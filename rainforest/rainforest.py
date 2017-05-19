@@ -48,6 +48,8 @@ from keras import losses
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 
+from keras.applications import InceptionV3, ResNet50, VGG16
+
 
 def make_cooccurence_matrix(df_labels, labels):
     numeric_df = df_labels[labels]
@@ -129,7 +131,7 @@ def kears_cnn():
 
     for i in tqdm(range(40479), miniters=1000):
         img = cv2.imread('data/train-jpg/' + train_name_list[i] + '.jpg')
-        img_32 = cv2.resize(img, (32, 32))
+        img_32 = cv2.resize(img, (48, 48))
         x_train.append(img_32)
         x_train.append(img_32[::-1])
         x_train.append(img_32[:, ::-1])
@@ -140,11 +142,11 @@ def kears_cnn():
 
     for i in tqdm(range(40669), miniters=1000):
         img = cv2.imread('data/test-jpg/' + test_name_list[i] + '.jpg')
-        x_test.append(cv2.resize(img, (32, 32)))
+        x_test.append(cv2.resize(img, (48, 48)))
 
     for i in tqdm(range(20522), miniters=1000):
         img = cv2.imread('data/test-jpg-additional/' + test_name_list[40669+i] + '.jpg')
-        x_file.append(cv2.resize(img, (32, 32)))
+        x_file.append(cv2.resize(img, (48, 48)))
 
     x_train = np.array(x_train, np.float16) / 255.
     y_train = np.array(y_train, np.int)
@@ -160,27 +162,32 @@ def kears_cnn():
     # x_train, x_valid, y_train, y_valid = x_train[:35000], x_train[35000:], y_train[:35000], y_train[35000:]
     x_train, x_valid, y_train, y_valid = train_test_split(x_train, y_train, test_size=0.1, random_state=4)
 
-    datagen = ImageDataGenerator(
-        featurewise_center=False,  # set input mean to 0 over the dataset
-        samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by std of the dataset
-        samplewise_std_normalization=False,  # divide each input by its std
-        zca_whitening=False,  # apply ZCA whitening
-        rotation_range=10,  # randomly rotate images in the range (degrees, 0 to 180)
-        width_shift_range=0.05,  # randomly shift images horizontally (fraction of total width)
-        height_shift_range=0.05,  # randomly shift images vertically (fraction of total height)
-        horizontal_flip=True,  # randomly flip images
-        vertical_flip=False)  # randomly flip images
+    # datagen = ImageDataGenerator(
+    #     featurewise_center=False,  # set input mean to 0 over the dataset
+    #     samplewise_center=False,  # set each sample mean to 0
+    #     featurewise_std_normalization=False,  # divide inputs by std of the dataset
+    #     samplewise_std_normalization=False,  # divide each input by its std
+    #     zca_whitening=False,  # apply ZCA whitening
+    #     rotation_range=10,  # randomly rotate images in the range (degrees, 0 to 180)
+    #     width_shift_range=0.05,  # randomly shift images horizontally (fraction of total width)
+    #     height_shift_range=0.05,  # randomly shift images vertically (fraction of total height)
+    #     horizontal_flip=True,  # randomly flip images
+    #     vertical_flip=False)  # randomly flip images
 
-    datagen.fit(x_train)
+    # datagen.fit(x_train)
 
-    model = Sequential()
-    model.add(Conv2D(32, kernel_size=(3, 3),
-                     activation='relu',
-                     input_shape=(32, 32, 3)))
+    model = VGG16(include_top=False, weights='imagenet',
+                  input_tensor=None, input_shape=(48, 48, 3),
+                  pooling=None,
+                  classes=1000)
 
-    model.add(Conv2D(64, (3, 3), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    # model = Sequential()
+    # model.add(Conv2D(32, kernel_size=(3, 3),
+    #                  activation='relu',
+    #                  input_shape=(32, 32, 3)))
+    #
+    # model.add(Conv2D(64, (3, 3), activation='relu'))
+    # model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
@@ -197,27 +204,26 @@ def kears_cnn():
     early_stopping = EarlyStopping(monitor='val_loss', patience=100)
     reduce_lr_on_Plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=0, mode='auto',
                                       epsilon=0.0001, cooldown=0, min_lr=0)
-    model_save = ModelCheckpoint(filepath='model/5-17/{epoch}.h5', monitor='val_loss', verbose=0, save_best_only=False,
+    model_save = ModelCheckpoint(filepath='model/5-19/{epoch}.h5', monitor='val_loss', verbose=0, save_best_only=False,
                                     save_weights_only=False, mode='auto', period=10)
 
-    hist = model.fit_generator(datagen.flow(x_train, y_train,
-                                     batch_size=128),
-                        steps_per_epoch=x_train.shape[0]//128,
-                        epochs=200,
-                        verbose=2,
-                        workers=4,
-                        validation_data=(x_valid, y_valid),
-                        callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
+    # hist = model.fit_generator(datagen.flow(x_train, y_train,
+    #                                  batch_size=128),
+    #                     steps_per_epoch=x_train.shape[0]//128,
+    #                     epochs=300,
+    #                     verbose=1,
+    #                     validation_data=(x_valid, y_valid),
+    #                     callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
 
-    # hist = model.fit(x_train, y_train,
-    #           batch_size=128,
-    #           epochs=300,
-    #           verbose=1,
-    #           validation_data=(x_valid, y_valid),
-    #           callbacks=[early_stopping, reduce_lr_on_Plateau])
+    hist = model.fit(x_train, y_train,
+              batch_size=128,
+              epochs=300,
+              verbose=2,
+              validation_data=(x_valid, y_valid),
+              callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
     print(hist.history)
     try:
-        with open('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.json', 'w') as f:
+        with open('model/model_keras_cnn_vgg_data_4d_v2_optimizer_adam_drop_025_lr_reduce_epochs_300.json', 'w') as f:
             json.dump(hist.history, f)
     except:
         pass
@@ -226,7 +232,7 @@ def kears_cnn():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    model.save('model/model_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.h5')
+    model.save('model/model_keras_cnn_vgg_data_4d_v2_optimizer_adam_drop_025_lr_reduce_epochs_300.h5')
 
     from sklearn.metrics import fbeta_score
 
@@ -262,7 +268,7 @@ def kears_cnn():
     # print(len(preds))
     preds_data = np.c_[test_name_list, preds]
     print(preds_data.shape)
-    np.savetxt('submission/submission_keras_cnn_data_4d_ImageDataGenerator_v2_optimizer_adam_drop_025_lr_reduce_epochs_200.csv', preds_data,
+    np.savetxt('submission/submission_keras_cnn_vgg_data_4d_v2_optimizer_adam_drop_025_lr_reduce_epochs_300.csv', preds_data,
                delimiter=',', header='image_name,tags', comments='', fmt='%s')
 
 
