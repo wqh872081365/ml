@@ -49,6 +49,7 @@ from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 
 from keras.applications import InceptionV3, ResNet50, VGG16
+from keras.models import Model
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -176,10 +177,20 @@ def kears_cnn():
 
     # datagen.fit(x_train)
 
-    model = VGG16(include_top=False, weights='imagenet',
-                  input_tensor=None, input_shape=(48, 48, 3),
-                  pooling=None,
-                  classes=1000)
+    base_model = VGG16(include_top=False, weights='imagenet',
+                       input_tensor=None, input_shape=(48, 48, 3),
+                       pooling=None,
+                       classes=1000)
+    x = base_model.output
+    x = Dropout(0.25)(x)
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    predictions = Dense(17, activation='sigmoid')(x)
+    model = Model(inputs=base_model.input, outputs=predictions)
+
+    for layer in base_model.layers:
+        layer.trainable = False
 
     # model = Sequential()
     # model.add(Conv2D(32, kernel_size=(3, 3),
