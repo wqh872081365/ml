@@ -37,6 +37,7 @@ import cv2
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import json
+import random
 
 import keras as k
 from keras.models import Sequential
@@ -50,6 +51,7 @@ from keras.preprocessing.image import ImageDataGenerator
 
 from keras.applications import InceptionV3, ResNet50, VGG16
 from keras.models import Model
+import shutil
 
 
 def make_cooccurence_matrix(df_labels, labels):
@@ -177,28 +179,28 @@ def kears_cnn():
 
     # datagen.fit(x_train)
 
-    base_model = VGG16(include_top=False, weights='imagenet',
-                       input_tensor=None, input_shape=(48, 48, 3),
-                       pooling=None,
-                       classes=1000)
-    x = base_model.output
-    x = Dropout(0.25)(x)
-    x = Flatten()(x)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    predictions = Dense(17, activation='sigmoid')(x)
-    model = Model(inputs=base_model.input, outputs=predictions)
-
-    for layer in base_model.layers:
-        layer.trainable = False
-
-    # model = Sequential()
-    # model.add(Conv2D(32, kernel_size=(3, 3),
-    #                  activation='relu',
-    #                  input_shape=(32, 32, 3)))
+    # base_model = VGG16(include_top=False, weights='imagenet',
+    #                    input_tensor=None, input_shape=(48, 48, 3),
+    #                    pooling=None,
+    #                    classes=1000)
+    # x = base_model.output
+    # x = Dropout(0.25)(x)
+    # x = Flatten()(x)
+    # x = Dense(128, activation='relu')(x)
+    # x = Dropout(0.5)(x)
+    # predictions = Dense(17, activation='sigmoid')(x)
+    # model = Model(inputs=base_model.input, outputs=predictions)
     #
-    # model.add(Conv2D(64, (3, 3), activation='relu'))
-    # model.add(MaxPooling2D(pool_size=(2, 2)))
+    # for layer in base_model.layers:
+    #     layer.trainable = False
+
+    model = Sequential()
+    model.add(Conv2D(32, kernel_size=(3, 3),
+                     activation='relu',
+                     input_shape=(32, 32, 3)))
+
+    model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
@@ -544,15 +546,23 @@ def get_train_test_data():
     plt.show()
 
 
+def keras_vgg16():
+    # for i in range(35000):
+    #     shutil.copyfile("data/train-jpg/train_"+str(i)+".jpg", "data/train-jpg-sub-train/train_"+str(i)+".jpg")
+    # for i in range(35000, 40479):
+    #     shutil.copyfile("data/train-jpg/train_"+str(i)+".jpg", "data/train-jpg-sub-val/train_"+str(i)+".jpg")
+    pass
+
 
 def main():
     # test_submission_ver()
     # save_image()
-    kears_cnn()
+    # kears_cnn()
     # predict_load_model()
     # keras_mlp()
     # get_train_test_data()
     # get_train_list()
+    keras_vgg16()
 
 
 if __name__ == '__main__':
