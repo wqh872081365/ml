@@ -15,6 +15,8 @@
 # keras cnn data_0.9 f2_0.227 data_origin data*4 drop_0.5 optimizer=adam lr=0.001 reduce epochs=178 -> loss: 0.1019 - acc: 0.9590 - val_loss: 0.1108 - val_acc: 0.9566 F2=0.904966 score=0.90191
 # keras cnn data_0.9 f2_0.182 data_origin ImageDataGenerator drop_0.5 optimizer=adam lr=0.001 reduce epochs=280 -> loss: 0.1270 - acc: 0.9506 - val_loss: 0.1165 - val_acc: 0.9526 F2=0.8972 score=0.89957
 # keras cnn data_0.9 f2_0.2 data_origin data*4 ImageDataGenerator drop_0.25 optimizer=adam lr=0.001 reduce epochs=199 -> acc:0.95796 loss:0.10678 val_acc: 0.96189 val_loss: 0.095187 F2=0.9166 score=0.90697
+# keras resnet cnn stay dense 512*2 drop 0.5 epochs=79  loss: 0.0930 - acc: 0.9643 - val_loss: 0.1031 - val_acc: 0.9609
+# keras inception cnn stay
 
 
 import matplotlib
@@ -49,7 +51,7 @@ from keras import losses
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 
-from keras.applications import InceptionV3, ResNet50, VGG16
+from keras.applications import InceptionV3, ResNet50, VGG16, vgg16, resnet50, inception_v3
 from keras.models import Model
 import shutil
 
@@ -551,6 +553,116 @@ def keras_vgg16():
     #     shutil.copyfile("data/train-jpg/train_"+str(i)+".jpg", "data/train-jpg-sub-train/train_"+str(i)+".jpg")
     # for i in range(35000, 40479):
     #     shutil.copyfile("data/train-jpg/train_"+str(i)+".jpg", "data/train-jpg-sub-val/train_"+str(i)+".jpg")
+
+    train_df = pd.read_csv("data/train_v2_list.csv")
+    # label_list = train_df.columns.values[2:]
+    train_name_list = train_df.values[:, 0]
+
+    # test_df = pd.read_csv("data/sample_submission_v2.csv")
+    # test_name_list = test_df.values[:, 0]
+    # print(test_name_list.shape)
+
+    model = InceptionV3(weights='imagenet', include_top=False, input_shape=(139, 139, 3))
+    model.summary()
+
+    x_train_features = []
+
+    # x_test = []
+    # x_file = []
+    #
+    for i in tqdm(range(40479), miniters=1000):
+        x_train = []
+        img = cv2.imread('data/train-jpg/' + train_name_list[i] + '.jpg')
+        img_139 = cv2.resize(img, (139, 139))
+        x_train.append(img_139)
+
+        # for i in tqdm(range(40669), miniters=1000):
+        #     img = cv2.imread('data/test-jpg/' + test_name_list[i] + '.jpg')
+        #     x_test.append(cv2.resize(img, (64, 64)))
+
+        # for i in tqdm(range(20522), miniters=1000):
+        #     img = cv2.imread('data/test-jpg-additional/' + test_name_list[40669+i] + '.jpg')
+        #     x_file.append(cv2.resize(img, (64, 64)))
+
+        x_train = np.array(x_train, np.float16)
+        # x_test = np.array(x_test, np.float16)
+        # x_file = np.array(x_file, np.float16)
+
+        # print(x_train.shape)
+        # print(x_test.shape)
+        # print(x_file.shape)
+
+        x_train = inception_v3.preprocess_input(x_train)
+        # x_test = resnet50.preprocess_input(x_test)
+        # x_file = resnet50.preprocess_input(x_file)
+
+        x_train_features.append(model.predict(x_train))
+
+    x_train_features = np.array(x_train_features, np.float16)
+    np.save(open('data/jpg-inception-v3/x_train_features-256.npy', 'w'), x_train_features)
+
+    # x_test_features = model.predict(x_test)
+    # np.save(open('data/jpg-vgg16/x_test_features-64.npy', 'w'), x_test_features)
+    # x_file_features = model.predict(x_file)
+    # np.save(open('data/jpg-vgg16/x_file_features-64.npy', 'w'), x_file_features)
+
+    # train_data_load = np.load(open('data/jpg-resnet50/x_train_features-256.npy'))
+    # test_data_load = np.load(open('data/jpg-vgg16/x_test_features-64.npy'))
+    # file_data_load = np.load(open('data/jpg-vgg16/x_file_features-64.npy'))
+
+    # y_train_value = train_df.values[:, 2:19]
+    # x_train, x_valid, y_train, y_valid = train_test_split(train_data_load, y_train_value, test_size=0.1, random_state=4)
+    #
+    # model = Sequential()
+    # model.add(Flatten(input_shape=x_train.shape[1:]))
+    # model.add(Dropout(0.5))
+    # model.add(Dense(256, activation='relu'))
+    # model.add(Dropout(0.5))
+    # model.add(Dense(17, activation='sigmoid'))
+
+    # model.summary()
+    #
+    # model.compile(loss=losses.binary_crossentropy,
+    #               # We NEED binary here, since categorical_crossentropy l1 norms the output before calculating loss.
+    #               optimizer=Adam(lr=0.001),  # adam 854931990138
+    #               metrics=['accuracy'])
+    #
+    # early_stopping = EarlyStopping(monitor='val_loss', patience=100)
+    # reduce_lr_on_Plateau = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=0, mode='auto',
+    #                                          epsilon=0.0001, cooldown=0, min_lr=0)
+    # model_save = ModelCheckpoint(filepath='model/resnet50/{epoch}.h5', monitor='val_loss', verbose=0, save_best_only=False,
+    #                              save_weights_only=False, mode='auto', period=20)
+    #
+    # hist = model.fit(x_train, y_train,
+    #                  batch_size=128,
+    #                  epochs=300,
+    #                  verbose=2,
+    #                  validation_data=(x_valid, y_valid),
+    #                  callbacks=[early_stopping, reduce_lr_on_Plateau, model_save])
+    # print(hist.history)
+    # try:
+    #     with open('model/inceptionv3/model_keras_cnn_inception_data_v2_optimizer_adam_drop_025_lr_reduce_epochs_300.json', 'w') as f:
+    #         json.dump(hist.history, f)
+    # except:
+    #     pass
+    #
+    # score = model.evaluate(x_valid, y_valid, verbose=0)
+    # print('Test loss:', score[0])
+    # print('Test accuracy:', score[1])
+    #
+    # model.save('model/inceptionv3/model_keras_cnn_inception_data_v2_optimizer_adam_drop_025_lr_reduce_epochs_300.h5')
+
+
+def keras_resnet_50():
+    # model = InceptionV3(weights='imagenet', include_top=False, input_shape=(139, 139, 3))
+    # model.summary()  # 6*6*2048(256) 3*3*2048(139)(min)
+
+    # model = VGG16(weights='imagenet', include_top=False, input_shape=(128, 128, 3))
+    # model.summary()  #  8*8*512(256)  4*4*512(128)  2*2*512(64)(330M)
+
+    # model = ResNet50(weights='imagenet', include_top=False, input_shape=(256, 256, 3))
+    # model.summary()  #  1*1*2048(256)  1*1*2048(197)(min)
+
     pass
 
 
@@ -563,6 +675,7 @@ def main():
     # get_train_test_data()
     # get_train_list()
     keras_vgg16()
+    # keras_resnet_50()
 
 
 if __name__ == '__main__':
